@@ -36,8 +36,9 @@
         "buildType": "apk"
       }
     },
-    "preview:device": {
+    "preview-device": {
       "extends": "preview",
+      "channel": "preview-device",
       "ios": {
         "simulator": false,
         "resourceClass": "m-medium"

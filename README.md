@@ -1,7 +1,7 @@
-# Glass Music
+# Smart Music Player
 
 A premium, offline, glassmorphic music player for Android & iOS built with
-**Expo SDK 56**, **Expo Router**, **TypeScript**, **Zustand**, **expo-audio**
+**Expo SDK 54**, **Expo Router**, **TypeScript**, **Zustand**, **expo-audio**
 and **expo-media-library**.
 
 The app automatically scans the device for local audio files, sorts them
@@ -76,9 +76,9 @@ npm run eas:init                 # creates the project on EAS and writes
 npx eas update:configure         # wires up the OTA `updates.url`
 ```
 
-After `eas init` and `eas update:configure`, replace the
-`REPLACE_WITH_EAS_PROJECT_ID` / `REPLACE_WITH_EXPO_ACCOUNT_USERNAME` placeholders
-that ship in `app.json` are populated automatically.
+After `eas init` and `eas update:configure`, `app.json` is populated with your
+real `extra.eas.projectId`, `owner`, and `updates.url`. Commit those changes
+before running any further builds.
 
 ### 2. Build profiles
 
@@ -88,7 +88,7 @@ that ship in `app.json` are populated automatically.
 | -------------- | -------------------------------------------- | --------------- | ---------------------- |
 | `development`  | Daily dev with the dev-client + Metro        | Debug APK       | Simulator `.app`       |
 | `preview`      | Internal QA / TestFlight-style sharing       | Release APK     | Simulator `.app`       |
-| `preview:device` | Same as `preview` but for real iPhones     | —               | Ad-hoc signed `.ipa`   |
+| `preview-device` | Same as `preview` but for real iPhones     | —               | Ad-hoc signed `.ipa`   |
 | `production`   | App Store / Play Store submissions           | Release `.aab`  | App Store-signed `.ipa`|
 
 ### 3. Run a build

@@ -19,7 +19,7 @@ export const THEMES: readonly ThemePreset[] = [
   {
     id: 'aurora',
     name: 'Aurora',
-    description: 'Violet & magenta — the original Glass Music look.',
+    description: 'Violet & magenta — the original Smart Music Player look.',
     bgGradient: ['#1A0033', '#0A0014', '#000000'],
     accentGradient: ['#7C3AED', '#EC4899'],
     accent: '#A78BFA',

@@ -1,38 +1,55 @@
 {
   "expo": {
-    "name": "Glass Music",
-    "slug": "glass-music-player",
+    "name": "Smart Music Player",
+    "slug": "smart-music-player",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "glassmusic",
+    "scheme": "smartmusic",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.glassmusic.app",
+      "bundleIdentifier": "com.smartmusic.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
         "NSAppleMusicUsageDescription": "Allow $(PRODUCT_NAME) to read music from your library.",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to read media for album artwork."
       }
     },
     "android": {
-      "package": "com.glassmusic.app",
+      "package": "com.smartmusic.app",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_VIDEO"
       ]
     },
     "web": {
@@ -70,10 +87,14 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "ff995805-37c3-4fe4-b6df-afc9a9c535d8"
       }
     },
-    "owner": "REPLACE_WITH_EXPO_ACCOUNT_USERNAME"
+    "owner": "mrsam_1",
+    "updates": {
+      "url": "https://u.expo.dev/ff995805-37c3-4fe4-b6df-afc9a9c535d8"
+    }
   }
 }

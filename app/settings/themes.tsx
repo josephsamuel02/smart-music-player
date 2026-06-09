@@ -33,7 +33,7 @@ export default function ThemesScreen() {
       if (!perm.granted) {
         Alert.alert(
           'Photos permission needed',
-          'Allow access to your photos so Glass Music can use one as the background.',
+          'Allow access to your photos so Smart Music Player can use one as the background.',
         );
         return;
       }

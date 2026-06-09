@@ -13,12 +13,12 @@ export type SupportedAudioExtension = (typeof SUPPORTED_AUDIO_EXTENSIONS)[number
 
 /** AsyncStorage keys (single source of truth). */
 export const StorageKeys = {
-  songsCache: '@glassmusic/songsCache/v1',
-  likedSongs: '@glassmusic/likedSongs/v1',
-  playlists: '@glassmusic/playlists/v1',
-  settings: '@glassmusic/settings/v1',
-  lastPlayed: '@glassmusic/lastPlayed/v1',
-  queue: '@glassmusic/queue/v1',
+  songsCache: '@smartmusic/songsCache/v1',
+  likedSongs: '@smartmusic/likedSongs/v1',
+  playlists: '@smartmusic/playlists/v1',
+  settings: '@smartmusic/settings/v1',
+  lastPlayed: '@smartmusic/lastPlayed/v1',
+  queue: '@smartmusic/queue/v1',
 } as const;
 
 export const DEFAULT_SETTINGS = {

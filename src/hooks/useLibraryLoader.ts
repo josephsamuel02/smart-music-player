@@ -57,7 +57,7 @@ export function useLibraryLoader() {
 
   // Re-scan whenever the app returns to the foreground. This is what makes
   // the library auto-refresh after the user grants permission in the system
-  // Settings app and comes back to Glass Music.
+  // Settings app and comes back to Smart Music Player.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') void scanNow();

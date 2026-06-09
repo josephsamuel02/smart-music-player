@@ -93,7 +93,7 @@ export default function SettingsMenuScreen() {
             ))}
           </GlassCard>
 
-          <Text style={styles.footer}>Glass Music · Offline-first · Local only</Text>
+          <Text style={styles.footer}>Smart Music Player · Offline-first · Local only</Text>
         </ScrollView>
       </SafeAreaView>
     </BackgroundGradient>
