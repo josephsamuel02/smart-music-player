@@ -79,7 +79,7 @@ function TabButton({
 }
 
 const styles = StyleSheet.create({
-  outer: { paddingHorizontal: Spacing.lg, paddingTop: 4, paddingBottom: 6 },
+  outer: { paddingHorizontal: Spacing.lg, paddingTop: 0, paddingBottom: 6, marginTop: -4 },
   card: { overflow: 'hidden' },
   scroll: {
     flexDirection: 'row',

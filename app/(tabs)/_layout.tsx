@@ -15,7 +15,7 @@ export default function TabsLayout() {
   return (
     <BackgroundGradient>
       <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
-        <TopHeader title="Music" subtitle="" />
+        <TopHeader />
         <TopTabBar />
         <View style={styles.flex}>
           <Slot />

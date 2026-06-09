@@ -7,7 +7,7 @@ import { Colors } from "@/constants/colors";
 import { FontSize, FontWeight, HitSlop, Spacing } from "@/constants/theme";
 
 type Props = {
-  title: string;
+  title?: string;
   subtitle?: string;
   /** Hide the search icon (e.g. inside Settings). */
   hideSearch?: boolean;
@@ -44,10 +44,12 @@ export function TopHeader({ title, subtitle, hideSearch, onMenu, backTo, style }
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
       ) : null}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
+      <View style={styles.titleSlot}>
+        {title ? (
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+        ) : null}
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
@@ -70,10 +72,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    gap: Spacing.xs,
   },
+  titleSlot: { flex: 1, justifyContent: "center" },
   title: { color: Colors.text, fontSize: FontSize.xxl, fontWeight: FontWeight.bold },
   subtitle: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 2 },
   iconBtn: {
