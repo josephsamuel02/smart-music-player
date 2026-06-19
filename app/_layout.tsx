@@ -6,11 +6,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useLibraryLoader } from '@/hooks/useLibraryLoader';
+import { useWidgetBridge } from '@/hooks/useWidgetBridge';
 import { useLikedStore } from '@/store/likedStore';
 import { useLyricsStore } from '@/store/lyricsStore';
 import { useMusicStore } from '@/store/musicStore';
 import { usePlaylistStore } from '@/store/playlistStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useStatsStore } from '@/store/statsStore';
 
 /**
  * Root layout. Owns:
@@ -61,6 +63,8 @@ export default function RootLayout() {
           <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="smart/[type]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="widget" options={{ animation: 'none' }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -70,18 +74,20 @@ export default function RootLayout() {
 function AppBootstrap() {
   useAudioEngine();
   useLibraryLoader();
+  useWidgetBridge();
 
   const hydrateLiked = useLikedStore((s) => s.hydrate);
   const hydratePlaylists = usePlaylistStore((s) => s.hydrate);
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
   const hydrateLyrics = useLyricsStore((s) => s.hydrate);
+  const hydrateStats = useStatsStore((s) => s.hydrate);
 
   useEffect(() => {
     (async () => {
       // Hydrate settings first so playback prefs are available before we
       // decide whether to auto-play the restored queue.
       await hydrateSettings();
-      await Promise.all([hydrateLiked(), hydratePlaylists(), hydrateLyrics()]);
+      await Promise.all([hydrateLiked(), hydratePlaylists(), hydrateLyrics(), hydrateStats()]);
 
       const settings = useSettingsStore.getState();
       const music = useMusicStore.getState();
@@ -93,7 +99,7 @@ function AppBootstrap() {
         music.setIsPlaying(true);
       }
     })();
-  }, [hydrateSettings, hydrateLiked, hydratePlaylists, hydrateLyrics]);
+  }, [hydrateSettings, hydrateLiked, hydratePlaylists, hydrateLyrics, hydrateStats]);
 
   return null;
 }

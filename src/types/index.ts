@@ -23,6 +23,8 @@ export type Song = {
   size?: number;
   /** Modification time (ms epoch) */
   modifiedAt?: number;
+  /** Creation / date-added time (ms epoch), used by the "Newly added" playlist */
+  addedAt?: number;
 };
 
 export type Playlist = {

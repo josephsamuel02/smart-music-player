@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ActionSheet } from '@/components/ActionSheet';
-import { EmptyState } from '@/components/EmptyState';
 import { PlaylistCard } from '@/components/PlaylistCard';
+import { SmartPlaylistCard } from '@/components/SmartPlaylistCard';
 import { usePlaylistStore } from '@/store/playlistStore';
+import { useMusicStore } from '@/store/musicStore';
+import { useStatsStore } from '@/store/statsStore';
 import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, MINI_PLAYER_HEIGHT, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { SMART_PLAYLISTS, computeSmartPlaylist } from '@/utils/smartPlaylists';
 
 export default function PlaylistsScreen() {
   const theme = useTheme();
@@ -16,6 +19,18 @@ export default function PlaylistsScreen() {
   const createPlaylist = usePlaylistStore((s) => s.createPlaylist);
   const renamePlaylist = usePlaylistStore((s) => s.renamePlaylist);
   const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist);
+
+  const songs = useMusicStore((s) => s.songs);
+  const stats = useStatsStore((s) => s.stats);
+
+  const smartCounts = useMemo(
+    () =>
+      SMART_PLAYLISTS.map((meta) => ({
+        meta,
+        count: computeSmartPlaylist(meta.type, songs, stats).length,
+      })),
+    [songs, stats],
+  );
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -63,28 +78,38 @@ export default function PlaylistsScreen() {
         </Pressable>
       </View>
 
-      {playlists.length === 0 ? (
-        <EmptyState
-          icon="list-outline"
-          title="No playlists yet"
-          message="Create your first playlist to organise your music."
-          actionLabel="Create Playlist"
-          onAction={() => setCreateOpen(true)}
-        />
-      ) : (
-        <FlatList
-          data={playlists}
-          keyExtractor={(p) => p.id}
-          renderItem={({ item }) => (
-            <PlaylistCard
-              playlist={item}
-              onPress={() => router.push(`/playlist/${item.id}` as never)}
-              onLongPress={() => setContextId(item.id)}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+      <FlatList
+        data={playlists}
+        keyExtractor={(p) => p.id}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.sectionLabel}>Made for you</Text>
+            {smartCounts.map(({ meta, count }) => (
+              <SmartPlaylistCard
+                key={meta.type}
+                meta={meta}
+                count={count}
+                onPress={() => router.push(`/smart/${meta.type}` as never)}
+              />
+            ))}
+            <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Your playlists</Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <PlaylistCard
+            playlist={item}
+            onPress={() => router.push(`/playlist/${item.id}` as never)}
+            onLongPress={() => setContextId(item.id)}
+          />
+        )}
+        ListEmptyComponent={
+          <Pressable onPress={() => setCreateOpen(true)} style={styles.emptyHint}>
+            <Ionicons name="add-circle-outline" size={20} color={Colors.textMuted} />
+            <Text style={styles.emptyHintText}>Create your first playlist</Text>
+          </Pressable>
+        }
+        contentContainerStyle={styles.listContent}
+      />
 
       <ActionSheet visible={createOpen} onClose={() => setCreateOpen(false)}>
         <View style={styles.sheetBody}>
@@ -195,6 +220,29 @@ const styles = StyleSheet.create({
   },
   newBtnText: { color: '#0A0014', fontWeight: FontWeight.bold, fontSize: FontSize.sm },
   listContent: { paddingBottom: MINI_PLAYER_HEIGHT + 80, paddingTop: 4 },
+  sectionLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 4,
+  },
+  sectionLabelSpaced: { marginTop: Spacing.lg },
+  emptyHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginTop: 4,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+    borderColor: Colors.glassBorder,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+  },
+  emptyHintText: { color: Colors.textMuted, fontSize: FontSize.md },
   sheetBody: { paddingHorizontal: Spacing.lg, paddingTop: 6, paddingBottom: Spacing.md },
   sheetTitle: { color: Colors.text, fontSize: FontSize.lg, fontWeight: FontWeight.semibold, marginBottom: 12 },
   sheetRow: {

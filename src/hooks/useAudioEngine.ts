@@ -6,6 +6,7 @@ import {
   useAudioPlayerStatus,
 } from 'expo-audio';
 import { selectCurrentSong, useMusicStore } from '@/store/musicStore';
+import { useStatsStore } from '@/store/statsStore';
 
 /** Module-level ref to the live player so non-root consumers can call seek. */
 let seekFn: ((seconds: number) => void) | null = null;
@@ -37,9 +38,13 @@ export function useAudioEngine() {
   const setIsPlaying = useMusicStore((s) => s.setIsPlaying);
   const setPosition = useMusicStore((s) => s.setPosition);
   const onTrackFinished = useMusicStore((s) => s.onTrackFinished);
+  const recordPlay = useStatsStore((s) => s.recordPlay);
 
   const loadedSongIdRef = useRef<string | null>(null);
   const lastFinishHandledRef = useRef<string | null>(null);
+  // Tracks which song id has already been counted for the current load, so a
+  // pause/resume of the same track doesn't inflate the play count.
+  const countedSongIdRef = useRef<string | null>(null);
 
   // 1) Configure audio mode for background playback / lock screen.
   useEffect(() => {
@@ -64,6 +69,7 @@ export function useAudioEngine() {
     if (loadedSongIdRef.current === current.id) return;
     loadedSongIdRef.current = current.id;
     lastFinishHandledRef.current = null;
+    countedSongIdRef.current = null;
 
     try {
       player.replace({ uri: current.uri });
@@ -75,23 +81,35 @@ export function useAudioEngine() {
       });
       if (isPlaying) {
         player.play();
+        if (countedSongIdRef.current !== current.id) {
+          countedSongIdRef.current = current.id;
+          recordPlay(current.id);
+        }
       }
     } catch {
       const nextId = onTrackFinished();
       if (!nextId) setIsPlaying(false);
     }
-  }, [current, isPlaying, player, onTrackFinished, setIsPlaying]);
+  }, [current, isPlaying, player, onTrackFinished, setIsPlaying, recordPlay]);
 
   // 3) Push play/pause toggles down to the player.
   useEffect(() => {
     if (!current) return;
     try {
-      if (isPlaying) player.play();
-      else player.pause();
+      if (isPlaying) {
+        player.play();
+        // Count a play the first time this loaded track starts.
+        if (countedSongIdRef.current !== current.id) {
+          countedSongIdRef.current = current.id;
+          recordPlay(current.id);
+        }
+      } else {
+        player.pause();
+      }
     } catch {
       // ignore
     }
-  }, [isPlaying, current, player]);
+  }, [isPlaying, current, player, recordPlay]);
 
   // 4) Mirror the player position/duration into the store + advance queue.
   useEffect(() => {

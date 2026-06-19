@@ -64,6 +64,7 @@ export async function scanDeviceForSongs(options?: {
         folderPath,
         filename,
         modifiedAt: asset.modificationTime,
+        addedAt: asset.creationTime ?? asset.modificationTime,
       });
     }
 

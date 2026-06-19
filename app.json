@@ -90,6 +90,43 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "MusicSmall",
+              "label": "Glass Music · Mini",
+              "minWidth": "180dp",
+              "minHeight": "60dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 1,
+              "description": "Quick play/pause for the current song",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "MusicMedium",
+              "label": "Glass Music · Player",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "description": "Now playing with transport controls",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "MusicLarge",
+              "label": "Glass Music · Songs",
+              "minWidth": "250dp",
+              "minHeight": "250dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 4,
+              "description": "Now playing plus a scrollable song list",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
       ]
     ],
     "experiments": {
