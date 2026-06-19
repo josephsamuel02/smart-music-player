@@ -24,6 +24,8 @@ type MusicStoreState = {
   durationSeconds: number;
 
   setSongs: (songs: Song[]) => void;
+  /** Attach a resolved (embedded/extracted) artwork URI to a single song. */
+  setSongArtwork: (songId: string, artwork: string) => void;
   setLoadState: (state: LoadState, error?: string | null) => void;
 
   /** Play a song from a source list (sets the queue to that list, starting at the given song). */
@@ -51,6 +53,22 @@ type MusicStoreState = {
 
   hydrateFromStorage: () => Promise<void>;
 };
+
+/**
+ * Guards one-time queue hydration. Without this, screens that mount
+ * `useLibraryLoader` (e.g. the Songs tab) would re-hydrate on every focus and
+ * reset `isPlaying` to false, pausing the active track on tab switches.
+ */
+let hasHydratedFromStorage = false;
+
+/** Debounced persistence so bulk artwork enrichment doesn't hammer storage. */
+let persistCacheTimer: ReturnType<typeof setTimeout> | null = null;
+function persistSongsCacheDebounced(songs: Song[]) {
+  if (persistCacheTimer) clearTimeout(persistCacheTimer);
+  persistCacheTimer = setTimeout(() => {
+    void StorageService.set(StorageKeys.songsCache, songs);
+  }, 1500);
+}
 
 function buildFolderGroups(songs: Song[]): FolderGroup[] {
   const map = new Map<string, FolderGroup>();
@@ -102,6 +120,17 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
       folders: buildFolderGroups(sorted),
     });
     void StorageService.set(StorageKeys.songsCache, sorted);
+  },
+
+  setSongArtwork: (songId, artwork) => {
+    const { songsById, songs } = get();
+    const existing = songsById[songId];
+    if (!existing || existing.artwork === artwork) return;
+    const updated = { ...existing, artwork };
+    const nextById = { ...songsById, [songId]: updated };
+    const nextSongs = songs.map((s) => (s.id === songId ? updated : s));
+    set({ songsById: nextById, songs: nextSongs });
+    persistSongsCacheDebounced(nextSongs);
   },
 
   setLoadState: (loadState, errorMessage = null) => set({ loadState, errorMessage }),
@@ -263,6 +292,8 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
     })),
 
   hydrateFromStorage: async () => {
+    if (hasHydratedFromStorage) return;
+    hasHydratedFromStorage = true;
     const [cached, queueData, lastPlayed] = await Promise.all([
       StorageService.get<Song[]>(StorageKeys.songsCache, []),
       StorageService.get<{ queue: string[]; index: number }>(StorageKeys.queue, {

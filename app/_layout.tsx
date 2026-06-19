@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useLibraryLoader } from '@/hooks/useLibraryLoader';
 import { useLikedStore } from '@/store/likedStore';
+import { useLyricsStore } from '@/store/lyricsStore';
 import { useMusicStore } from '@/store/musicStore';
 import { usePlaylistStore } from '@/store/playlistStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -49,6 +50,14 @@ export default function RootLayout() {
               gestureEnabled: true,
             }}
           />
+          <Stack.Screen
+            name="lyrics"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              gestureEnabled: true,
+            }}
+          />
           <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
@@ -65,13 +74,14 @@ function AppBootstrap() {
   const hydrateLiked = useLikedStore((s) => s.hydrate);
   const hydratePlaylists = usePlaylistStore((s) => s.hydrate);
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
+  const hydrateLyrics = useLyricsStore((s) => s.hydrate);
 
   useEffect(() => {
     (async () => {
       // Hydrate settings first so playback prefs are available before we
       // decide whether to auto-play the restored queue.
       await hydrateSettings();
-      await Promise.all([hydrateLiked(), hydratePlaylists()]);
+      await Promise.all([hydrateLiked(), hydratePlaylists(), hydrateLyrics()]);
 
       const settings = useSettingsStore.getState();
       const music = useMusicStore.getState();
@@ -83,7 +93,7 @@ function AppBootstrap() {
         music.setIsPlaying(true);
       }
     })();
-  }, [hydrateSettings, hydrateLiked, hydratePlaylists]);
+  }, [hydrateSettings, hydrateLiked, hydratePlaylists, hydrateLyrics]);
 
   return null;
 }

@@ -19,6 +19,7 @@ export const StorageKeys = {
   settings: '@smartmusic/settings/v1',
   lastPlayed: '@smartmusic/lastPlayed/v1',
   queue: '@smartmusic/queue/v1',
+  lyrics: '@smartmusic/lyrics/v1',
 } as const;
 
 export const DEFAULT_SETTINGS = {

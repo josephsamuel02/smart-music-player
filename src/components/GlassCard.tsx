@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, View, ViewProps, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Radius } from '@/constants/theme';
 import { useGlass } from '@/hooks/useGlass';
 
@@ -49,6 +50,12 @@ export function GlassCard({
 
   const useNativeBlur = Platform.OS !== 'android' || blur >= 20;
 
+  // Liquid-glass specular strength scales gently with how "solid" the surface
+  // is, so glossier highlights appear on stronger surfaces without washing out
+  // very transparent ones.
+  const sheenTop = variant === 'strong' ? 0.5 : variant === 'subtle' ? 0.28 : 0.4;
+  const sheenMid = variant === 'strong' ? 0.1 : 0.06;
+
   return (
     <View
       {...rest}
@@ -72,6 +79,51 @@ export function GlassCard({
           { backgroundColor: variantTint, borderRadius: radius },
         ]}
       />
+
+      {/* Liquid glass: glossy top-down specular sheen. */}
+      <LinearGradient
+        colors={[
+          `rgba(255, 255, 255, ${sheenTop.toFixed(3)})`,
+          `rgba(255, 255, 255, ${sheenMid.toFixed(3)})`,
+          'rgba(255, 255, 255, 0)',
+        ]}
+        locations={[0, 0.45, 1]}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+        pointerEvents="none"
+      />
+
+      {/* Liquid glass: diagonal light streak for a wet, fluid reflection. */}
+      <LinearGradient
+        colors={[
+          'rgba(255, 255, 255, 0.22)',
+          'rgba(255, 255, 255, 0)',
+          'rgba(255, 255, 255, 0)',
+          'rgba(255, 255, 255, 0.10)',
+        ]}
+        locations={[0, 0.35, 0.7, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+        pointerEvents="none"
+      />
+
+      {/* Liquid glass: soft depth shading toward the bottom edge. */}
+      <LinearGradient
+        colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.12)']}
+        locations={[0.6, 1]}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+        pointerEvents="none"
+      />
+
+      {/* Liquid glass: bright crisp highlight hugging the top rim. */}
+      <View
+        style={[
+          styles.topRim,
+          { borderRadius: radius, borderColor: 'rgba(255, 255, 255, 0.5)' },
+        ]}
+        pointerEvents="none"
+      />
+
       <View style={styles.content}>{children}</View>
     </View>
   );
@@ -84,6 +136,11 @@ const styles = StyleSheet.create({
   },
   padded: {
     padding: 14,
+  },
+  topRim: {
+    ...StyleSheet.absoluteFillObject,
+    borderTopWidth: 1,
+    borderColor: 'transparent',
   },
   content: {
     position: 'relative',

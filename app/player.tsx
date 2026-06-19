@@ -48,7 +48,7 @@ export default function PlayerScreen() {
   const [showQueue, setShowQueue] = useState(false);
   const [scrubValue, setScrubValue] = useState<number | null>(null);
 
-  const artSize = useMemo(() => Math.min(SCREEN_W - Spacing.xl * 2, 340), []);
+  const artSize = useMemo(() => Math.min(SCREEN_W - Spacing.xl * 4, 240), []);
 
   if (!current) {
     return (
@@ -235,6 +235,17 @@ export default function PlayerScreen() {
                   hitSlop={HitSlop}
                   onPress={() => {
                     void Haptics.selectionAsync();
+                    router.push('/lyrics');
+                  }}
+                  style={styles.lyricsBtn}
+                >
+                  <Ionicons name="text" size={18} color={Colors.text} />
+                  <Text style={styles.lyricsBtnText}>Lyrics</Text>
+                </Pressable>
+                <Pressable
+                  hitSlop={HitSlop}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
                     setShowQueue(true);
                   }}
                   style={styles.miniBtn}
@@ -334,6 +345,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
+  lyricsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 40,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  lyricsBtnText: { color: Colors.text, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 
   queueHeader: {
     flexDirection: 'row',
