@@ -53,9 +53,14 @@ export function MiniPlayer({ extraBottom = 0 }: { extraBottom?: number }) {
     <Animated.View
       entering={FadeInDown.duration(220)}
       exiting={FadeOutDown.duration(180)}
-      style={[styles.wrapper, { bottom: Math.max(insets.bottom, Spacing.sm) + extraBottom }]}
+      style={[styles.wrapper, { bottom: extraBottom }]}
     >
-      <GlassCard radius={Radius.lg} variant="strong" style={styles.card} noPadding>
+      <GlassCard
+        radius={Radius.lg}
+        variant="strong"
+        style={[styles.card, { paddingBottom: insets.bottom }]}
+        noPadding
+      >
         <View style={[styles.progressTrack]}>
           <View
             style={[
@@ -94,11 +99,15 @@ export function MiniPlayer({ extraBottom = 0 }: { extraBottom?: number }) {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    left: Spacing.md,
-    right: Spacing.md,
+    left: 0,
+    right: 0,
   },
   card: {
     overflow: 'hidden',
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   progressTrack: {
     height: 2,
