@@ -50,7 +50,10 @@ function SongItemImpl({ song, isActive, isLiked, onPress, onLongPress, onMore }:
       <View style={styles.text}>
         <Text
           numberOfLines={1}
-          style={[styles.title, isActive && { color: theme.accent }]}
+          style={[
+            styles.title,
+            isActive && { color: theme.accent, fontWeight: FontWeight.bold },
+          ]}
         >
           {song.title}
         </Text>
@@ -60,7 +63,7 @@ function SongItemImpl({ song, isActive, isLiked, onPress, onLongPress, onMore }:
         </Text>
       </View>
       <View style={styles.meta}>
-        {isLiked ? <AnimatedHeart liked size={14} style={styles.heart} /> : null}
+        {isLiked ? <AnimatedHeart liked size={20} style={styles.heart} /> : null}
         <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
       </View>
       <Pressable hitSlop={HitSlop} onPress={handleMore} style={styles.more}>

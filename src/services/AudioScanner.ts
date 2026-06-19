@@ -1,7 +1,7 @@
 import * as MediaLibrary from 'expo-media-library';
 import type { Song } from '@/types';
 import { SUPPORTED_AUDIO_EXTENSIONS } from '@/constants/audio';
-import { basename, dirname, parseFilenameForMetadata } from '@/utils/format';
+import { basename, dirname, isNumericTitle, parseFilenameForMetadata } from '@/utils/format';
 
 const PAGE_SIZE = 200;
 
@@ -53,9 +53,18 @@ export async function scanDeviceForSongs(options?: {
       const folderPath = dirname(asset.uri);
       const folder = basename(folderPath) || 'Music';
 
+      // When the title is just a number (e.g. "12.mp3"), fall back to other
+      // available information so the list shows something meaningful. We keep
+      // the number as a suffix so tracks in the same folder stay distinct.
+      let title = meta.title || filename.replace(/\.[^.]+$/, '');
+      if (isNumericTitle(title)) {
+        const base = meta.artist || meta.album || (folder !== 'Music' ? folder : '');
+        if (base) title = `${base} ${title.trim()}`;
+      }
+
       songs.push({
         id: asset.id,
-        title: meta.title || filename.replace(/\.[^.]+$/, ''),
+        title,
         artist: meta.artist || 'Unknown Artist',
         album: meta.album || folder || 'Unknown Album',
         duration: asset.duration ?? 0,

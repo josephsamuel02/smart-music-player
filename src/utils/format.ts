@@ -20,6 +20,11 @@ export function formatCount(n: number, singular: string, plural?: string): strin
   return `${(n / 1000).toFixed(1)}K ${word}`;
 }
 
+/** True when a string is nothing but a number, e.g. "12", "001", "  7 ". */
+export function isNumericTitle(value: string): boolean {
+  return /^\s*\d+\s*$/.test(value);
+}
+
 /** Parse "Artist - Title" or "Artist - Album - Title" out of a filename. */
 export function parseFilenameForMetadata(
   filename: string,

@@ -3,19 +3,21 @@ import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGlass } from '@/hooks/useGlass';
-import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/store/settingsStore';
+import { getBackground } from '@/constants/backgrounds';
 
 /**
- * App-wide moody backdrop. If the user has picked a custom background image,
- * we render that (dimmed by their slider) instead of the theme gradient. The
- * glass-tint overlay always sits on top so the surfaces above stay readable.
+ * App-wide moody backdrop. Priority: a user-picked custom photo wins; otherwise
+ * the selected background preset (the bundled `default_bg.jpg` image or one of
+ * the mood gradients) is rendered. The glass-tint overlay always sits on top so
+ * the surfaces above stay readable.
  */
 export function BackgroundGradient({ children }: { children?: React.ReactNode }) {
   const glass = useGlass();
-  const theme = useTheme();
+  const backgroundId = useSettingsStore((s) => s.theme.backgroundId);
   const customBgUri = useSettingsStore((s) => s.theme.customBackgroundUri);
   const customBgDim = useSettingsStore((s) => s.theme.customBackgroundDim);
+  const background = getBackground(backgroundId);
 
   return (
     <View style={styles.root}>
@@ -35,9 +37,17 @@ export function BackgroundGradient({ children }: { children?: React.ReactNode })
             ]}
           />
         </>
+      ) : background.type === 'image' ? (
+        <Image
+          source={background.source}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={200}
+        />
       ) : (
         <LinearGradient
-          colors={theme.bgGradient as unknown as readonly [string, string, string]}
+          colors={background.colors as unknown as readonly [string, string, string]}
           locations={[0, 0.55, 1]}
           style={StyleSheet.absoluteFill}
         />

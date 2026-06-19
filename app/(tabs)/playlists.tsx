@@ -11,7 +11,20 @@ import { useStatsStore } from '@/store/statsStore';
 import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, MINI_PLAYER_HEIGHT, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { SMART_PLAYLISTS, computeSmartPlaylist } from '@/utils/smartPlaylists';
+import {
+  SMART_PLAYLISTS,
+  computeSmartPlaylist,
+  type SmartPlaylistMeta,
+} from '@/utils/smartPlaylists';
+
+const ARTISTS_META = {
+  type: 'artists',
+  title: 'Artists',
+  description: 'Browse your music by artist',
+  icon: 'people-outline',
+  gradient: ['#8B5CF6', '#22D3EE'],
+  limit: 0,
+} as unknown as SmartPlaylistMeta;
 
 export default function PlaylistsScreen() {
   const theme = useTheme();
@@ -30,6 +43,11 @@ export default function PlaylistsScreen() {
         count: computeSmartPlaylist(meta.type, songs, stats).length,
       })),
     [songs, stats],
+  );
+
+  const artistCount = useMemo(
+    () => new Set(songs.map((s) => s.artist?.trim() || 'Unknown Artist')).size,
+    [songs],
   );
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -93,6 +111,17 @@ export default function PlaylistsScreen() {
               />
             ))}
             <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Your playlists</Text>
+          </View>
+        }
+        ListFooterComponent={
+          <View>
+            <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Browse</Text>
+            <SmartPlaylistCard
+              meta={ARTISTS_META}
+              count={artistCount}
+              unit="artist"
+              onPress={() => router.push('/artists' as never)}
+            />
           </View>
         }
         renderItem={({ item }) => (

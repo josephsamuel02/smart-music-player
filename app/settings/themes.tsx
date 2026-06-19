@@ -13,10 +13,12 @@ import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, HitSlop, Radius, Spacing } from '@/constants/theme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEMES, type ThemePreset } from '@/constants/themes';
+import { BACKGROUNDS, type BackgroundPreset } from '@/constants/backgrounds';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function ThemesScreen() {
   const themeId = useSettingsStore((s) => s.theme.themeId);
+  const backgroundId = useSettingsStore((s) => s.theme.backgroundId);
   const customBgUri = useSettingsStore((s) => s.theme.customBackgroundUri);
   const customBgDim = useSettingsStore((s) => s.theme.customBackgroundDim);
   const updateTheme = useSettingsStore((s) => s.updateTheme);
@@ -24,6 +26,12 @@ export default function ThemesScreen() {
   const activeTheme = useTheme();
 
   const [picking, setPicking] = useState(false);
+
+  const handleSelectBackground = async (id: string) => {
+    // Selecting a preset replaces any custom photo so the preset is visible.
+    if (customBgUri) await setCustomBackground(null);
+    updateTheme({ backgroundId: id });
+  };
 
   const handlePickImage = async () => {
     if (picking) return;
@@ -53,7 +61,7 @@ export default function ThemesScreen() {
   };
 
   const handleRemoveImage = () => {
-    Alert.alert('Remove custom background?', 'Your selected theme gradient will be used again.', [
+    Alert.alert('Remove custom background?', 'Your selected background preset will be used again.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => void setCustomBackground(null) },
     ]);
@@ -71,25 +79,43 @@ export default function ThemesScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
-          {/* Section 1: preset background themes */}
-          <Text style={styles.sectionTitle}>Background themes</Text>
+          {/* Section 1: theme colours (accent palette) */}
+          <Text style={styles.sectionTitle}>Theme Colours</Text>
           <Text style={styles.sectionCaption}>
-            Pick a colour palette. The change applies instantly across every screen.
+            Pick an accent palette. It tints buttons, sliders and highlights across every screen.
           </Text>
 
-          <View style={styles.grid}>
+          <View style={styles.swatchGrid}>
             {THEMES.map((theme) => (
-              <ThemeCard
+              <ColourSwatch
                 key={theme.id}
                 theme={theme}
-                active={!customBgUri && theme.id === themeId}
+                active={theme.id === themeId}
                 onPress={() => updateTheme({ themeId: theme.id })}
               />
             ))}
           </View>
 
-          {/* Section 2: custom background */}
-          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Custom background</Text>
+          {/* Section 2: background presets */}
+          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Backgrounds</Text>
+          <Text style={styles.sectionCaption}>
+            Choose the backdrop. The default photo or a transitioned-colour mood.
+          </Text>
+
+          <View style={styles.bgGrid}>
+            {BACKGROUNDS.map((bg) => (
+              <BackgroundThumb
+                key={bg.id}
+                background={bg}
+                active={!customBgUri && bg.id === backgroundId}
+                accent={activeTheme.accent}
+                onPress={() => void handleSelectBackground(bg.id)}
+              />
+            ))}
+          </View>
+
+          {/* Section 3: custom photo background */}
+          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Your photo</Text>
           <Text style={styles.sectionCaption}>
             Use one of your own photos as the app backdrop. Adjust the dim level so the UI stays
             readable.
@@ -122,7 +148,7 @@ export default function ThemesScreen() {
             ) : (
               <View style={[styles.customPreviewWrap, styles.customPreviewEmpty]}>
                 <Ionicons name="image-outline" size={32} color={Colors.textFaint} />
-                <Text style={styles.customPreviewEmptyText}>No custom background</Text>
+                <Text style={styles.customPreviewEmptyText}>No custom photo</Text>
               </View>
             )}
 
@@ -194,7 +220,7 @@ export default function ThemesScreen() {
   );
 }
 
-function ThemeCard({
+function ColourSwatch({
   theme,
   active,
   onPress,
@@ -204,44 +230,74 @@ function ThemeCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.cardWrap, pressed && { opacity: 0.85 }]}>
-      <GlassCard
-        style={[styles.card, active && { borderColor: theme.accent, borderWidth: 1.5 }]}
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.swatchWrap, pressed && { opacity: 0.85 }]}>
+      <View
+        style={[
+          styles.swatchCircle,
+          { borderColor: active ? theme.accent : 'rgba(255,255,255,0.12)' },
+        ]}
       >
-        <View style={styles.previewWrap}>
-          <LinearGradient
-            colors={theme.bgGradient as unknown as readonly [string, string, string]}
-            locations={[0, 0.55, 1]}
-            style={styles.preview}
-          />
-          <View style={styles.previewAccentRow}>
-            <LinearGradient
-              colors={theme.accentGradient as unknown as readonly [string, string]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.previewAccentBar}
-            />
-            <View style={[styles.previewDot, { backgroundColor: theme.accent }]} />
+        <LinearGradient
+          colors={theme.accentGradient as unknown as readonly [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {active ? (
+          <View style={styles.swatchCheck}>
+            <Ionicons name="checkmark" size={16} color="#0A0A0F" />
           </View>
-          {active ? (
-            <View style={[styles.checkBadge, { backgroundColor: theme.accent }]}>
-              <Ionicons name="checkmark" size={14} color="#0A0A0F" />
-            </View>
-          ) : null}
-        </View>
+        ) : null}
+      </View>
+      <Text style={[styles.swatchName, active && { color: theme.accent }]} numberOfLines={1}>
+        {theme.name}
+      </Text>
+    </Pressable>
+  );
+}
 
-        <View style={styles.cardBody}>
-          <View style={styles.cardTitleRow}>
-            <Text style={styles.cardTitle}>{theme.name}</Text>
-            {active ? (
-              <View style={[styles.activeBadge, { backgroundColor: theme.accent + '33' }]}>
-                <Text style={[styles.activeBadgeText, { color: theme.accent }]}>Active</Text>
-              </View>
-            ) : null}
+function BackgroundThumb({
+  background,
+  active,
+  accent,
+  onPress,
+}: {
+  background: BackgroundPreset;
+  active: boolean;
+  accent: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.bgThumbWrap, pressed && { opacity: 0.85 }]}>
+      <View
+        style={[
+          styles.bgThumb,
+          { borderColor: active ? accent : 'rgba(255,255,255,0.12)', borderWidth: active ? 2 : 1 },
+        ]}
+      >
+        {background.type === 'image' ? (
+          <Image
+            source={background.source}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        ) : (
+          <LinearGradient
+            colors={background.colors as unknown as readonly [string, string, string]}
+            locations={[0, 0.55, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+        {active ? (
+          <View style={[styles.bgCheck, { backgroundColor: accent }]}>
+            <Ionicons name="checkmark" size={13} color="#0A0A0F" />
           </View>
-          <Text style={styles.cardDescription}>{theme.description}</Text>
-        </View>
-      </GlassCard>
+        ) : null}
+      </View>
+      <Text style={[styles.bgName, active && { color: accent }]} numberOfLines={1}>
+        {background.name}
+      </Text>
     </Pressable>
   );
 }
@@ -279,50 +335,59 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
 
-  grid: { gap: Spacing.md },
-  cardWrap: { width: '100%' },
-  card: { padding: 0, overflow: 'hidden' },
-
-  previewWrap: { height: 110, width: '100%', position: 'relative' },
-  preview: { ...StyleSheet.absoluteFillObject },
-  previewAccentRow: {
-    position: 'absolute',
-    bottom: 12,
-    left: 14,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  previewAccentBar: { flex: 1, height: 6, borderRadius: 3 },
-  previewDot: { width: 18, height: 18, borderRadius: 9 },
-
-  checkBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  // Theme colour swatches (compact).
+  swatchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  swatchWrap: { width: 64, alignItems: 'center' },
+  swatchCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  cardBody: { padding: Spacing.md },
-  cardTitleRow: {
-    flexDirection: 'row',
+  swatchCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'center',
   },
-  cardTitle: { color: Colors.text, fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
-  cardDescription: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 4 },
+  swatchName: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 6,
+    textAlign: 'center',
+  },
 
-  activeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
+  // Background preset thumbnails.
+  bgGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  bgThumbWrap: { width: '30%', alignItems: 'center' },
+  bgThumb: {
+    width: '100%',
+    height: 76,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  activeBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  bgCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bgName: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 6,
+    textAlign: 'center',
+  },
 
   customCard: { padding: 0, overflow: 'hidden' },
   customPreviewWrap: {

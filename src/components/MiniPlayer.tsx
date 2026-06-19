@@ -1,9 +1,21 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeOutDown,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectCurrentSong, useMusicStore } from '@/store/musicStore';
 import { Colors } from '@/constants/colors';
@@ -27,6 +39,25 @@ export function MiniPlayer({ extraBottom = 0 }: { extraBottom?: number }) {
   const nextTrack = useMusicStore((s) => s.next);
   const prevTrack = useMusicStore((s) => s.previous);
 
+  // Periodic diagonal "light glint" that sweeps across the bar like a
+  // reflection moving over glass.
+  const shimmer = useSharedValue(0);
+  useEffect(() => {
+    shimmer.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.ease) }),
+        withDelay(2800, withTiming(0, { duration: 0 })),
+      ),
+      -1,
+    );
+  }, [shimmer]);
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(shimmer.value, [0, 1], [-SHIMMER_BAND_W, SCREEN_W]) },
+      { rotate: '18deg' },
+    ],
+  }));
+
   if (!current) return null;
 
   const progress =
@@ -49,12 +80,22 @@ export function MiniPlayer({ extraBottom = 0 }: { extraBottom?: number }) {
     router.push('/player');
   };
 
+  // Solid (but theme-tinted) base so list content never shows through the bar
+  // as the user scrolls. The GlassCard's frost + sheen still render on top, so
+  // it keeps the glassmorphic look while staying opaque.
+  const [tr, tg, tb] = theme.backgroundTintRgb;
+  const backdropColor = `rgb(${Math.min(255, tr + 22)}, ${Math.min(255, tg + 18)}, ${Math.min(
+    255,
+    tb + 36,
+  )})`;
+
   return (
     <Animated.View
       entering={FadeInDown.duration(220)}
       exiting={FadeOutDown.duration(180)}
       style={[styles.wrapper, { bottom: extraBottom }]}
     >
+      <View pointerEvents="none" style={[styles.backdrop, { backgroundColor: backdropColor }]} />
       <GlassCard
         radius={Radius.lg}
         variant="strong"
@@ -92,15 +133,51 @@ export function MiniPlayer({ extraBottom = 0 }: { extraBottom?: number }) {
           </View>
         </Pressable>
       </GlassCard>
+
+      {/* Sparkle / reflection: a soft diagonal highlight sweeping across. */}
+      <Animated.View pointerEvents="none" style={styles.shimmerClip}>
+        <Animated.View style={[styles.shimmerBand, shimmerStyle]}>
+          <LinearGradient
+            colors={[
+              'rgba(255, 255, 255, 0)',
+              'rgba(255, 255, 255, 0.30)',
+              'rgba(255, 255, 255, 0)',
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      </Animated.View>
     </Animated.View>
   );
 }
+
+const SCREEN_W = Dimensions.get('window').width;
+const SHIMMER_BAND_W = 80;
 
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
     left: 0,
     right: 0,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+  },
+  shimmerClip: {
+    ...StyleSheet.absoluteFillObject,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  shimmerBand: {
+    position: 'absolute',
+    top: -40,
+    bottom: -40,
+    width: SHIMMER_BAND_W,
   },
   card: {
     overflow: 'hidden',

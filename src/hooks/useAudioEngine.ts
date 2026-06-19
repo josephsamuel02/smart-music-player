@@ -42,6 +42,9 @@ export function useAudioEngine() {
 
   const loadedSongIdRef = useRef<string | null>(null);
   const lastFinishHandledRef = useRef<string | null>(null);
+  // Timestamp of the most recent track swap. Used to ignore a stale
+  // `didJustFinish` that the native player can emit right after `replace`.
+  const lastReplaceAtRef = useRef<number>(0);
   // Tracks which song id has already been counted for the current load, so a
   // pause/resume of the same track doesn't inflate the play count.
   const countedSongIdRef = useRef<string | null>(null);
@@ -69,6 +72,7 @@ export function useAudioEngine() {
     if (loadedSongIdRef.current === current.id) return;
     loadedSongIdRef.current = current.id;
     lastFinishHandledRef.current = null;
+    lastReplaceAtRef.current = Date.now();
     countedSongIdRef.current = null;
 
     try {
@@ -111,26 +115,58 @@ export function useAudioEngine() {
     }
   }, [isPlaying, current, player, recordPlay]);
 
-  // 4) Mirror the player position/duration into the store + advance queue.
+  // 4) Mirror the player position/duration into the store.
   useEffect(() => {
-    if (!status) return;
-    if (status.isLoaded) {
+    if (status?.isLoaded) {
       setPosition(status.currentTime ?? 0, status.duration ?? 0);
     }
+  }, [status, setPosition]);
 
-    if (status.didJustFinish && current && lastFinishHandledRef.current !== current.id) {
-      lastFinishHandledRef.current = current.id;
-      const nextId = onTrackFinished();
+  // 4b) Advance the queue when a track finishes. We use a direct playback event
+  // listener (not the derived `status`) so this only runs on real "finished"
+  // events from the native player - reacting to `status` in an effect would
+  // re-fire on every React re-render with a stale `didJustFinish`, causing the
+  // queue to skip to the end instead of advancing one track at a time.
+  useEffect(() => {
+    const sub = player.addListener('playbackStatusUpdate', (s: { didJustFinish?: boolean }) => {
+      if (!s?.didJustFinish) return;
+
+      const finishedId = loadedSongIdRef.current;
+      if (!finishedId) return;
+      // Ignore a stale "finished" emitted right after we swapped tracks.
+      if (Date.now() - lastReplaceAtRef.current < 800) return;
+      if (lastFinishHandledRef.current === finishedId) return;
+      lastFinishHandledRef.current = finishedId;
+
+      const nextId = useMusicStore.getState().onTrackFinished();
       if (!nextId) {
+        // End of queue (repeat off): stop at the start of the last track.
         try {
           player.pause();
           player.seekTo(0);
         } catch {
           // ignore
         }
+        return;
       }
-    }
-  }, [status, current, onTrackFinished, setPosition, player]);
+      if (nextId === finishedId) {
+        // Repeat-one: replay the same track. Clear the guard so the next
+        // finish is handled again, and restart playback ourselves since the
+        // loader effect won't fire (the current song id is unchanged).
+        lastFinishHandledRef.current = null;
+        lastReplaceAtRef.current = Date.now();
+        try {
+          player.seekTo(0);
+          player.play();
+        } catch {
+          // ignore
+        }
+      }
+      // Otherwise a different song is now current; the loader effect (2) picks
+      // it up and starts playback.
+    });
+    return () => sub.remove();
+  }, [player]);
 
   // 5) Keep state honest if the OS pauses us in the background.
   useEffect(() => {

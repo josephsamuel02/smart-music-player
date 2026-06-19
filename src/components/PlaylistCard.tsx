@@ -31,7 +31,7 @@ export function PlaylistCard({ playlist, onPress, onLongPress }: Props) {
   const palette = pickPalette(playlist.id);
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => pressed && { opacity: 0.85 }}>
-      <GlassCard radius={Radius.md} style={styles.card}>
+      <GlassCard radius={Radius.sm} style={styles.card}>
         <View style={styles.row}>
           <View style={styles.coverWrap}>
             <LinearGradient
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   coverWrap: {
     width: 56,
     height: 56,
-    borderRadius: Radius.md,
+    borderRadius: Radius.sm,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

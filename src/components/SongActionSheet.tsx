@@ -26,32 +26,42 @@ export function SongActionSheet({ song, visible, onClose }: Props) {
   const allSongs = useMusicStore((s) => s.songs);
   const setSongs = useMusicStore((s) => s.setSongs);
 
-  const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false);
+  // Local copy of the song for the "Add to playlist" sheet. The parent clears
+  // `song` as soon as we close the first sheet, so we keep our own reference to
+  // hand off to the second sheet without it disappearing mid-transition.
+  const [playlistSong, setPlaylistSong] = useState<Song | null>(null);
 
-  if (!song) return null;
+  if (!song && !playlistSong) return null;
 
   const handlePlayNext = () => {
+    if (!song) return;
     playNext(song.id);
     onClose();
   };
 
   const handleAddToQueue = () => {
+    if (!song) return;
     addToQueue(song.id);
     onClose();
   };
 
   const handleAddToPlaylist = () => {
+    if (!song) return;
+    const target = song;
+    // Close the first sheet, then open the playlist sheet once it has finished
+    // sliding out so only one card is ever on screen at a time.
     onClose();
-    // Small timeout so the first sheet finishes animating out
-    setTimeout(() => setAddToPlaylistOpen(true), 200);
+    setTimeout(() => setPlaylistSong(target), 240);
   };
 
   const handleLike = () => {
+    if (!song) return;
     toggleLike(song.id);
     onClose();
   };
 
   const handleShare = async () => {
+    if (!song) return;
     onClose();
     try {
       if (await Sharing.isAvailableAsync()) {
@@ -65,6 +75,7 @@ export function SongActionSheet({ song, visible, onClose }: Props) {
   };
 
   const handleDelete = () => {
+    if (!song) return;
     Alert.alert('Delete song', `Permanently delete "${song.title}" from your device?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -85,40 +96,42 @@ export function SongActionSheet({ song, visible, onClose }: Props) {
 
   return (
     <>
-      <ActionSheet visible={visible} onClose={onClose}>
-        <View style={styles.header}>
-          <Artwork uri={song.artwork} seed={song.id} size={48} radius={10} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={styles.title}>
-              {song.title}
-            </Text>
-            <Text numberOfLines={1} style={styles.subtitle}>
-              {song.artist}
-            </Text>
+      {song ? (
+        <ActionSheet visible={visible} onClose={onClose}>
+          <View style={styles.header}>
+            <Artwork uri={song.artwork} seed={song.id} size={48} radius={10} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={styles.title}>
+                {song.title}
+              </Text>
+              <Text numberOfLines={1} style={styles.subtitle}>
+                {song.artist}
+              </Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.divider} />
-        <ActionRow icon="play-skip-forward" label="Play Next" onPress={handlePlayNext} />
-        <ActionRow icon="list" label="Add to Queue" onPress={handleAddToQueue} />
-        <ActionRow icon="add-circle-outline" label="Add to Playlist" onPress={handleAddToPlaylist} />
-        <ActionRow
-          icon={isLiked ? 'heart' : 'heart-outline'}
-          label={isLiked ? 'Unlike Song' : 'Like Song'}
-          iconColor={isLiked ? Colors.danger : undefined}
-          onPress={handleLike}
-        />
-        <ActionRow icon="share-outline" label="Share" onPress={handleShare} />
-        <ActionRow
-          icon="trash-outline"
-          label="Delete from Device"
-          tone="danger"
-          onPress={handleDelete}
-        />
-      </ActionSheet>
+          <View style={styles.divider} />
+          <ActionRow icon="play-skip-forward" label="Play Next" onPress={handlePlayNext} />
+          <ActionRow icon="list" label="Add to Queue" onPress={handleAddToQueue} />
+          <ActionRow icon="add-circle-outline" label="Add to Playlist" onPress={handleAddToPlaylist} />
+          <ActionRow
+            icon={isLiked ? 'heart' : 'heart-outline'}
+            label={isLiked ? 'Unlike Song' : 'Like Song'}
+            iconColor={isLiked ? Colors.danger : undefined}
+            onPress={handleLike}
+          />
+          <ActionRow icon="share-outline" label="Share" onPress={handleShare} />
+          <ActionRow
+            icon="trash-outline"
+            label="Delete from Device"
+            tone="danger"
+            onPress={handleDelete}
+          />
+        </ActionSheet>
+      ) : null}
       <AddToPlaylistSheet
-        song={song}
-        visible={addToPlaylistOpen}
-        onClose={() => setAddToPlaylistOpen(false)}
+        song={playlistSong}
+        visible={!!playlistSong}
+        onClose={() => setPlaylistSong(null)}
       />
     </>
   );

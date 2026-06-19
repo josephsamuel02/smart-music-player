@@ -26,9 +26,9 @@ export const StorageKeys = {
 
 export const DEFAULT_SETTINGS = {
   glass: {
-    transparency: 0.6,
-    blurIntensity: 60,
-    backgroundOpacity: 0.35,
+    transparency: 0.57,
+    blurIntensity: 0,
+    backgroundOpacity: 0.09,
   },
   playback: {
     crossfade: false,
@@ -40,6 +40,7 @@ export const DEFAULT_SETTINGS = {
   },
   theme: {
     themeId: 'aurora',
+    backgroundId: 'default',
     customBackgroundUri: undefined as string | undefined,
     customBackgroundDim: 0.45,
   },

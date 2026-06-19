@@ -47,6 +47,7 @@ function sanitizeGlass(g: GlassSettings): GlassSettings {
 function sanitizeTheme(t: ThemeSettings): ThemeSettings {
   return {
     themeId: t.themeId,
+    backgroundId: t.backgroundId || 'default',
     customBackgroundUri: t.customBackgroundUri || undefined,
     customBackgroundDim: clamp(t.customBackgroundDim ?? 0.45, 0, 1),
   };

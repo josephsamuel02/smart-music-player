@@ -64,6 +64,8 @@ export default function RootLayout() {
           <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="smart/[type]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="artists" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="artist/[name]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="widget" options={{ animation: 'none' }} />
         </Stack>
       </SafeAreaProvider>

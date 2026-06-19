@@ -76,7 +76,7 @@ export function AddToPlaylistSheet({ song, visible, onClose }: Props) {
         ListEmptyComponent={
           !creating ? (
             <Text style={styles.empty}>
-              You don't have any playlists yet. Tap + to create one.
+              {"You don't have any playlists yet. Tap + to create one."}
             </Text>
           ) : null
         }

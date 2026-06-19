@@ -12,15 +12,17 @@ type Props = {
   meta: SmartPlaylistMeta;
   count: number;
   onPress: () => void;
+  /** Word used for the count subtitle (default "song"). */
+  unit?: string;
 };
 
-export function SmartPlaylistCard({ meta, count, onPress }: Props) {
+export function SmartPlaylistCard({ meta, count, onPress, unit = 'song' }: Props) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => pressed && { opacity: 0.85 }}
     >
-      <GlassCard radius={Radius.md} style={styles.card}>
+      <GlassCard radius={Radius.sm} style={styles.card}>
         <View style={styles.row}>
           <View style={styles.coverWrap}>
             <LinearGradient
@@ -36,7 +38,7 @@ export function SmartPlaylistCard({ meta, count, onPress }: Props) {
               {meta.title}
             </Text>
             <Text numberOfLines={1} style={styles.subtitle}>
-              {count > 0 ? formatCount(count, 'song') : meta.description}
+              {count > 0 ? formatCount(count, unit) : meta.description}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
@@ -52,7 +54,7 @@ const styles = StyleSheet.create({
   coverWrap: {
     width: 56,
     height: 56,
-    borderRadius: Radius.md,
+    borderRadius: Radius.sm,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

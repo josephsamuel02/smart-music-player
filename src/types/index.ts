@@ -73,10 +73,12 @@ export type LibrarySettings = {
 };
 
 export type ThemeSettings = {
-  /** Id of the active theme preset (see `src/constants/themes.ts`). */
+  /** Id of the active theme-colour preset (accent palette). See `src/constants/themes.ts`. */
   themeId: string;
+  /** Id of the active background preset (image or mood gradient). See `src/constants/backgrounds.ts`. */
+  backgroundId: string;
   /** Optional persisted local URI of a user-picked custom background image.
-   *  When set, it replaces the preset's gradient at render time. */
+   *  When set, it replaces the selected background preset at render time. */
   customBackgroundUri?: string;
   /** 0..1 - how much to darken the custom background for readability. */
   customBackgroundDim: number;
