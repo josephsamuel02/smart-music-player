@@ -13,7 +13,11 @@ import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, HitSlop, Radius, Spacing } from '@/constants/theme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEMES, type ThemePreset } from '@/constants/themes';
-import { BACKGROUNDS, type BackgroundPreset } from '@/constants/backgrounds';
+import {
+  GRADIENT_BACKGROUNDS,
+  IMAGE_BACKGROUNDS,
+  type BackgroundPreset,
+} from '@/constants/backgrounds';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function ThemesScreen() {
@@ -96,14 +100,14 @@ export default function ThemesScreen() {
             ))}
           </View>
 
-          {/* Section 2: background presets */}
-          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Backgrounds</Text>
+          {/* Section 2: background images */}
+          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Background Images</Text>
           <Text style={styles.sectionCaption}>
-            Choose the backdrop. The default photo or a transitioned-colour mood.
+            Pick a photo to use as the app backdrop.
           </Text>
 
           <View style={styles.bgGrid}>
-            {BACKGROUNDS.map((bg) => (
+            {IMAGE_BACKGROUNDS.map((bg) => (
               <BackgroundThumb
                 key={bg.id}
                 background={bg}
@@ -114,7 +118,25 @@ export default function ThemesScreen() {
             ))}
           </View>
 
-          {/* Section 3: custom photo background */}
+          {/* Section 3: background colours (mood gradients) */}
+          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Background Colours</Text>
+          <Text style={styles.sectionCaption}>
+            Or use a transitioned-colour mood instead of a photo.
+          </Text>
+
+          <View style={styles.bgGrid}>
+            {GRADIENT_BACKGROUNDS.map((bg) => (
+              <BackgroundThumb
+                key={bg.id}
+                background={bg}
+                active={!customBgUri && bg.id === backgroundId}
+                accent={activeTheme.accent}
+                onPress={() => void handleSelectBackground(bg.id)}
+              />
+            ))}
+          </View>
+
+          {/* Section 4: custom photo background */}
           <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Your photo</Text>
           <Text style={styles.sectionCaption}>
             Use one of your own photos as the app backdrop. Adjust the dim level so the UI stays

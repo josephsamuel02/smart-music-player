@@ -28,7 +28,7 @@ export const DEFAULT_SETTINGS = {
   glass: {
     transparency: 0.57,
     blurIntensity: 0,
-    backgroundOpacity: 0.09,
+    backgroundOpacity: 0.34,
   },
   playback: {
     crossfade: false,

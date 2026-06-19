@@ -17,17 +17,62 @@ export type BackgroundPreset =
     };
 
 /**
- * The six background choices shown in Settings → Themes. The first option is
- * the bundled `default_bg.jpg` photo (the app default); the rest are
- * transitioned-colour gradients for different moods.
+ * Bundled photo backgrounds. The first option is the app default
+ * (`default_bg.jpg`); the rest are the photos in the `assets` folder.
  */
-export const BACKGROUNDS: readonly BackgroundPreset[] = [
+export const IMAGE_BACKGROUNDS: readonly BackgroundPreset[] = [
   {
     id: 'default',
     name: 'Default',
     type: 'image',
     source: require('../../assets/default_bg.jpg'),
   },
+  {
+    id: 'photo-nightfall',
+    name: 'Nightfall',
+    type: 'image',
+    source: require('../../assets/billy-huynh-W8KTS-mhFUE-unsplash.jpg'),
+  },
+  {
+    id: 'photo-drift',
+    name: 'Drift',
+    type: 'image',
+    source: require('../../assets/juho-luomala-K2AWz4lXrAM-unsplash.jpg'),
+  },
+  {
+    id: 'photo-slate',
+    name: 'Slate',
+    type: 'image',
+    source: require('../../assets/keith-misner-h0Vxgz5tyXA-unsplash.jpg'),
+  },
+  {
+    id: 'photo-ember',
+    name: 'Ember Sky',
+    type: 'image',
+    source: require('../../assets/kenny-cinders-7qRM11Kmnh4-unsplash.jpg'),
+  },
+  {
+    id: 'photo-horizon',
+    name: 'Horizon',
+    type: 'image',
+    source: require('../../assets/lucas-k-wQLAGv4_OYs-unsplash.jpg'),
+  },
+  {
+    id: 'photo-bloom',
+    name: 'Bloom',
+    type: 'image',
+    source: require('../../assets/malena-gonzalez-serena-I8JL2ztNmp0-unsplash.jpg'),
+  },
+  {
+    id: 'photo-paper',
+    name: 'Paper',
+    type: 'image',
+    source: require('../../assets/patrick-tomasso-QMDap1TAu0g-unsplash.jpg'),
+  },
+] as const;
+
+/** Transitioned-colour gradient backgrounds for different moods. */
+export const GRADIENT_BACKGROUNDS: readonly BackgroundPreset[] = [
   {
     id: 'nebula',
     name: 'Nebula',
@@ -59,6 +104,12 @@ export const BACKGROUNDS: readonly BackgroundPreset[] = [
     colors: ['#10331F', '#07180F', '#000000'],
   },
 ] as const;
+
+/** Every selectable background (used for lookups). */
+export const BACKGROUNDS: readonly BackgroundPreset[] = [
+  ...IMAGE_BACKGROUNDS,
+  ...GRADIENT_BACKGROUNDS,
+];
 
 export const DEFAULT_BACKGROUND_ID = 'default';
 
