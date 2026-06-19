@@ -7,6 +7,7 @@ import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, HitSlop, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { formatDuration } from '@/utils/format';
+import { AnimatedHeart } from './AnimatedHeart';
 import { Artwork } from './Artwork';
 
 type Props = {
@@ -59,9 +60,7 @@ function SongItemImpl({ song, isActive, isLiked, onPress, onLongPress, onMore }:
         </Text>
       </View>
       <View style={styles.meta}>
-        {isLiked ? (
-          <Ionicons name="heart" size={14} color={Colors.danger} style={styles.heart} />
-        ) : null}
+        {isLiked ? <AnimatedHeart liked size={14} style={styles.heart} /> : null}
         <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
       </View>
       <Pressable hitSlop={HitSlop} onPress={handleMore} style={styles.more}>

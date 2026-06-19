@@ -1,14 +1,8 @@
-import React from 'react';
 import { Platform } from 'react-native';
 import { StorageKeys } from '@/constants/audio';
 import { StorageService } from '@/services/StorageService';
 import { selectCurrentSong, useMusicStore } from '@/store/musicStore';
 import { EMPTY_WIDGET_DATA, type WidgetData } from '@/widgets/widgetData';
-import {
-  MusicWidgetLarge,
-  MusicWidgetMedium,
-  MusicWidgetSmall,
-} from '@/widgets/MusicWidgets';
 
 const WIDGET_NAMES = ['MusicSmall', 'MusicMedium', 'MusicLarge'] as const;
 const MAX_LIST = 60;
@@ -38,24 +32,14 @@ export async function getWidgetSnapshot(): Promise<WidgetData> {
   return StorageService.get<WidgetData>(StorageKeys.widgetSnapshot, EMPTY_WIDGET_DATA);
 }
 
-/** Render the correct widget component for a given registered widget name. */
-export function renderWidgetByName(name: string, data: WidgetData) {
-  switch (name) {
-    case 'MusicSmall':
-      return React.createElement(MusicWidgetSmall, { data });
-    case 'MusicMedium':
-      return React.createElement(MusicWidgetMedium, { data });
-    case 'MusicLarge':
-    default:
-      return React.createElement(MusicWidgetLarge, { data });
-  }
-}
-
 let lastSerialized = '';
 
 /**
  * Persist a fresh snapshot and push it to every on-screen widget. Cheap to
  * call often: it bails out when nothing visible to the widgets changed.
+ *
+ * All `react-native-android-widget` access is lazy + guarded so the app keeps
+ * running on builds where the native widget module isn't present.
  */
 export async function updateWidgets(force = false): Promise<void> {
   if (!isAndroid) return;
@@ -68,6 +52,7 @@ export async function updateWidgets(force = false): Promise<void> {
 
   try {
     const { requestWidgetUpdate } = await import('react-native-android-widget');
+    const { renderWidgetByName } = await import('@/widgets/renderWidget');
     await Promise.all(
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
@@ -80,6 +65,7 @@ export async function updateWidgets(force = false): Promise<void> {
       ),
     );
   } catch {
-    // Native module unavailable (e.g. Expo Go / iOS) - snapshot is still saved.
+    // Native module unavailable (Expo Go / iOS / not-yet-rebuilt) - snapshot
+    // is still saved so the widget renders correctly once the module exists.
   }
 }

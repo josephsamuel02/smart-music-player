@@ -1,11 +1,12 @@
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
-import { getWidgetSnapshot, renderWidgetByName } from '@/services/WidgetService';
+import { getWidgetSnapshot } from '@/services/WidgetService';
+import { renderWidgetByName } from '@/widgets/renderWidget';
 
 /**
  * Headless handler invoked by the OS for widget lifecycle/click events.
  * Renders the requested widget from the persisted snapshot. Playback click
  * actions use OPEN_URI deep links, which Android handles by launching the app
- * (parsed in `useWidgetBridge`), so no work is needed here for clicks.
+ * (parsed by the `app/widget.tsx` route), so no work is needed here for clicks.
  */
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
   const name = props.widgetInfo.widgetName;

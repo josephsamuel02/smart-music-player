@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { BackgroundGradient } from '@/components/BackgroundGradient';
 import { GlassCard } from '@/components/GlassCard';
+import { AnimatedHeart } from '@/components/AnimatedHeart';
 import { Artwork } from '@/components/Artwork';
 import { QueueList } from '@/components/QueueList';
 import { seekToSecondsGlobal } from '@/hooks/useAudioEngine';
@@ -225,11 +226,7 @@ export default function PlayerScreen() {
                   }}
                   style={styles.miniBtn}
                 >
-                  <Ionicons
-                    name={liked ? 'heart' : 'heart-outline'}
-                    size={22}
-                    color={liked ? Colors.danger : Colors.text}
-                  />
+                  <AnimatedHeart liked={liked} size={22} />
                 </Pressable>
                 <Pressable
                   hitSlop={HitSlop}
