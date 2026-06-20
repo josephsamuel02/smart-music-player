@@ -63,6 +63,15 @@ export default function PlaybackSettingsScreen() {
                 accentSoft={theme.accentSoft}
                 onValueChange={(v) => updatePlayback({ autoPlayOnLaunch: v })}
               />
+              <ToggleRow
+                icon="headset-outline"
+                label="Pause when headphones disconnect"
+                hint="Automatically pause when earphones or Bluetooth audio are removed."
+                value={playback.pauseOnHeadphonesDisconnect}
+                accent={theme.accent}
+                accentSoft={theme.accentSoft}
+                onValueChange={(v) => updatePlayback({ pauseOnHeadphonesDisconnect: v })}
+              />
             </GlassCard>
           </Section>
 

@@ -77,6 +77,7 @@ export const SongItem = memo(SongItemImpl, (prev, next) => {
   return (
     prev.song.id === next.song.id &&
     prev.song.title === next.song.title &&
+    prev.song.artwork === next.song.artwork &&
     prev.isActive === next.isActive &&
     prev.isLiked === next.isLiked
   );

@@ -4,10 +4,10 @@ import { useMusicStore } from '@/store/musicStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { ensureMediaPermission } from '@/utils/permissions';
 import { scanDeviceForSongs } from '@/services/AudioScanner';
-import { enrichSongsWithArtwork } from '@/services/ArtworkExtractor';
+import { enrichSongsWithMetadata } from '@/services/ArtworkExtractor';
 
-/** Guards the (idempotent) artwork pass so it runs at most once per session. */
-let artworkPassStarted = false;
+/** Guards the (idempotent) metadata pass so it runs at most once per session. */
+let metadataPassStarted = false;
 
 /**
  * Manages library lifecycle: hydrates from cache, requests permissions,
@@ -38,11 +38,12 @@ export function useLibraryLoader() {
       setSongs(songs);
       setLoadState('ready');
 
-      // Resolve embedded album art in the background (cached after first run).
-      if (!artworkPassStarted) {
-        artworkPassStarted = true;
-        const { setSongArtwork } = useMusicStore.getState();
-        void enrichSongsWithArtwork(songs, setSongArtwork);
+      // Resolve embedded tags (real title/artist + album art) in the
+      // background, cached after the first run so it only parses each file once.
+      if (!metadataPassStarted) {
+        metadataPassStarted = true;
+        const { applySongMetadata } = useMusicStore.getState();
+        void enrichSongsWithMetadata(useMusicStore.getState().songs, applySongMetadata);
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to scan music library.';

@@ -7,6 +7,7 @@ import {
 } from 'expo-audio';
 import { selectCurrentSong, useMusicStore } from '@/store/musicStore';
 import { useStatsStore } from '@/store/statsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 
 /** Module-level ref to the live player so non-root consumers can call seek. */
 let seekFn: ((seconds: number) => void) | null = null;
@@ -39,12 +40,16 @@ export function useAudioEngine() {
   const setPosition = useMusicStore((s) => s.setPosition);
   const onTrackFinished = useMusicStore((s) => s.onTrackFinished);
   const recordPlay = useStatsStore((s) => s.recordPlay);
+  const pauseOnDisconnect = useSettingsStore((s) => s.playback.pauseOnHeadphonesDisconnect);
 
   const loadedSongIdRef = useRef<string | null>(null);
   const lastFinishHandledRef = useRef<string | null>(null);
   // Timestamp of the most recent track swap. Used to ignore a stale
   // `didJustFinish` that the native player can emit right after `replace`.
   const lastReplaceAtRef = useRef<number>(0);
+  // Timestamp of the most recent "start playing" intent, so the disconnect
+  // detector doesn't misread the brief gap before play() takes effect.
+  const lastPlayIntentAtRef = useRef<number>(0);
   // Tracks which song id has already been counted for the current load, so a
   // pause/resume of the same track doesn't inflate the play count.
   const countedSongIdRef = useRef<string | null>(null);
@@ -84,6 +89,7 @@ export function useAudioEngine() {
         artworkUrl: current.artwork,
       });
       if (isPlaying) {
+        lastPlayIntentAtRef.current = Date.now();
         player.play();
         if (countedSongIdRef.current !== current.id) {
           countedSongIdRef.current = current.id;
@@ -101,6 +107,7 @@ export function useAudioEngine() {
     if (!current) return;
     try {
       if (isPlaying) {
+        lastPlayIntentAtRef.current = Date.now();
         player.play();
         // Count a play the first time this loaded track starts.
         if (countedSongIdRef.current !== current.id) {
@@ -121,6 +128,23 @@ export function useAudioEngine() {
       setPosition(status.currentTime ?? 0, status.duration ?? 0);
     }
   }, [status, setPosition]);
+
+  // 4c) Pause when headphones / Bluetooth audio disconnect. The OS pauses the
+  // native player on an output-route change (e.g. unplugging earphones); we
+  // detect that here and mirror it into the store so the UI + state stay in
+  // sync (and we don't blast audio out of the speaker). Heavily guarded so we
+  // never misread a track swap or the brief gap right after pressing play.
+  useEffect(() => {
+    if (!pauseOnDisconnect) return;
+    if (!status?.isLoaded) return;
+    if (!isPlaying) return; // we believe playback is active
+    if (status.playing) return; // but the native player isn't
+    if (status.isBuffering || status.didJustFinish) return; // not a stall / natural end
+    const now = Date.now();
+    if (now - lastReplaceAtRef.current < 1500) return; // track swap still settling
+    if (now - lastPlayIntentAtRef.current < 1500) return; // play() hasn't taken effect yet
+    setIsPlaying(false);
+  }, [status, pauseOnDisconnect, isPlaying, setIsPlaying]);
 
   // 4b) Advance the queue when a track finishes. We use a direct playback event
   // listener (not the derived `status`) so this only runs on real "finished"

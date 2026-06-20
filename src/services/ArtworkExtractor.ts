@@ -9,11 +9,15 @@ import type { Song } from '@/types';
  * containers (FLAC/M4A/OGG) are skipped and fall back to the gradient
  * placeholder, matching the "songs without an image" behaviour.
  *
- * Extracted images are written once to the cache directory and reused on
+ * Extracted images are written once to a persistent directory and reused on
  * subsequent launches, so the expensive parse only happens a single time.
+ *
+ * NOTE: we deliberately use the *document* directory (not the cache) so the
+ * extracted covers survive the OS reclaiming cached files — otherwise the
+ * stored artwork path would dangle and the player would show a blank box.
  */
 
-const ARTWORK_DIR = `${FileSystem.cacheDirectory}artwork/`;
+const ARTWORK_DIR = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory}artwork/`;
 const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 const B64_LOOKUP = (() => {
@@ -91,11 +95,118 @@ function readUint24BE(bytes: Uint8Array, offset: number): number {
 }
 
 type Picture = { mime: string; data: Uint8Array };
+type Id3Tags = { title?: string; artist?: string; album?: string; picture?: Picture };
 
-/** Parse the picture out of an already-loaded ID3v2 tag body. */
-function parseApic(tag: Uint8Array, major: number): Picture | null {
-  // tag includes the 10-byte header; frames start at offset 10.
-  let offset = 10;
+function decodeLatin1(b: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < b.length; i++) {
+    if (b[i] === 0) break;
+    s += String.fromCharCode(b[i]);
+  }
+  return s;
+}
+
+function decodeUtf8(b: Uint8Array): string {
+  let s = '';
+  let i = 0;
+  while (i < b.length) {
+    const c = b[i++];
+    if (c === 0) break;
+    if (c < 0x80) {
+      s += String.fromCharCode(c);
+    } else if (c < 0xe0) {
+      const c2 = b[i++];
+      s += String.fromCharCode(((c & 0x1f) << 6) | (c2 & 0x3f));
+    } else if (c < 0xf0) {
+      const c2 = b[i++];
+      const c3 = b[i++];
+      s += String.fromCharCode(((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f));
+    } else {
+      const c2 = b[i++];
+      const c3 = b[i++];
+      const c4 = b[i++];
+      let cp = ((c & 0x07) << 18) | ((c2 & 0x3f) << 12) | ((c3 & 0x3f) << 6) | (c4 & 0x3f);
+      cp -= 0x10000;
+      s += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 0x3ff));
+    }
+  }
+  return s;
+}
+
+function decodeUtf16(b: Uint8Array, encoding: number): string {
+  let i = 0;
+  let littleEndian = false;
+  if (encoding === 1) {
+    // UTF-16 with BOM
+    if (b[0] === 0xff && b[1] === 0xfe) {
+      littleEndian = true;
+      i = 2;
+    } else if (b[0] === 0xfe && b[1] === 0xff) {
+      i = 2;
+    }
+  }
+  let s = '';
+  for (; i + 1 < b.length; i += 2) {
+    const code = littleEndian ? b[i] | (b[i + 1] << 8) : (b[i] << 8) | b[i + 1];
+    if (code === 0) break;
+    s += String.fromCharCode(code);
+  }
+  return s;
+}
+
+/** Decode an ID3 text-frame body (first byte is the encoding flag). */
+function decodeTextFrame(body: Uint8Array): string {
+  if (body.length <= 1) return '';
+  const encoding = body[0];
+  const data = body.subarray(1);
+  let text: string;
+  if (encoding === 0) text = decodeLatin1(data);
+  else if (encoding === 3) text = decodeUtf8(data);
+  else text = decodeUtf16(data, encoding);
+  return text.replace(/\u0000+$/, '').trim();
+}
+
+/** Pull the picture bytes out of an APIC/PIC frame body. */
+function parsePictureBody(body: Uint8Array, isV22: boolean): Picture | null {
+  let p = 1; // skip text-encoding byte
+  let mime: string;
+
+  if (isV22) {
+    const fmt = String.fromCharCode(body[1], body[2], body[3]).toUpperCase();
+    mime = fmt.startsWith('PNG') ? 'image/png' : 'image/jpeg';
+    p = 4;
+  } else {
+    let mimeStr = '';
+    while (p < body.length && body[p] !== 0) {
+      mimeStr += String.fromCharCode(body[p]);
+      p++;
+    }
+    p++; // skip MIME null terminator
+    mime = mimeStr || 'image/jpeg';
+  }
+
+  p++; // skip picture-type byte
+
+  const encoding = body[0];
+  if (encoding === 1 || encoding === 2) {
+    while (p + 1 < body.length && !(body[p] === 0 && body[p + 1] === 0)) p += 2;
+    p += 2;
+  } else {
+    while (p < body.length && body[p] !== 0) p++;
+    p++;
+  }
+
+  if (p < body.length) return { mime, data: body.subarray(p) };
+  return null;
+}
+
+/**
+ * Walk an already-loaded ID3v2 tag once, collecting the title/artist/album
+ * text frames and the first embedded picture. Handles ID3v2.2 / 2.3 / 2.4.
+ */
+function parseTag(tag: Uint8Array, major: number): Id3Tags {
+  const result: Id3Tags = {};
+  let offset = 10; // frames start after the 10-byte header
   const isV22 = major === 2;
   const headerSize = isV22 ? 6 : 10;
 
@@ -122,47 +233,25 @@ function parseApic(tag: Uint8Array, major: number): Picture | null {
     const bodyEnd = bodyStart + frameSize;
     if (bodyEnd > tag.length) break;
 
+    const body = tag.subarray(bodyStart, bodyEnd);
+
     if (frameId === 'APIC' || frameId === 'PIC') {
-      const body = tag.subarray(bodyStart, bodyEnd);
-      let p = 1; // skip text-encoding byte
-      let mime: string;
-
-      if (isV22) {
-        // 3-char image format code, e.g. "JPG" / "PNG"
-        const fmt = String.fromCharCode(body[1], body[2], body[3]).toUpperCase();
-        mime = fmt.startsWith('PNG') ? 'image/png' : 'image/jpeg';
-        p = 4;
-      } else {
-        let mimeStr = '';
-        while (p < body.length && body[p] !== 0) {
-          mimeStr += String.fromCharCode(body[p]);
-          p++;
-        }
-        p++; // skip MIME null terminator
-        mime = mimeStr || 'image/jpeg';
+      if (!result.picture) {
+        const pic = parsePictureBody(body, isV22);
+        if (pic) result.picture = pic;
       }
-
-      p++; // skip picture-type byte
-
-      // Skip the (possibly UTF-16) description string up to its terminator.
-      const encoding = body[0];
-      if (encoding === 1 || encoding === 2) {
-        while (p + 1 < body.length && !(body[p] === 0 && body[p + 1] === 0)) p += 2;
-        p += 2;
-      } else {
-        while (p < body.length && body[p] !== 0) p++;
-        p++;
-      }
-
-      if (p < body.length) {
-        return { mime, data: body.subarray(p) };
-      }
+    } else if (frameId === 'TIT2' || frameId === 'TT2') {
+      if (!result.title) result.title = decodeTextFrame(body);
+    } else if (frameId === 'TPE1' || frameId === 'TP1') {
+      if (!result.artist) result.artist = decodeTextFrame(body);
+    } else if (frameId === 'TALB' || frameId === 'TAL') {
+      if (!result.album) result.album = decodeTextFrame(body);
     }
 
     offset = bodyEnd;
   }
 
-  return null;
+  return result;
 }
 
 function extFromMime(mime: string): string {
@@ -179,62 +268,112 @@ async function ensureDir() {
   dirEnsured = true;
 }
 
+export type EmbeddedMetadata = {
+  title?: string;
+  artist?: string;
+  album?: string;
+  /** Local cached URI of the embedded cover art, if any. */
+  artwork?: string;
+};
+
 /**
- * Returns a cached file URI for the song's embedded artwork, or null if the
- * file has none / is an unsupported container. Caches the result on disk.
+ * Reads the embedded ID3 tag of an MP3 once and returns the title/artist/album
+ * text plus a cached URI for the cover art. Returns `null` only when the file
+ * could not be read (so the caller can retry later); an empty object means the
+ * file was read but had no usable tags.
+ *
+ * This is what lets WhatsApp-style files (e.g. `AUD-…-WA0001.mp3`) show their
+ * real song name instead of the cryptic filename, mirroring other players.
  */
-export async function extractArtwork(song: Song): Promise<string | null> {
-  if (!song.uri.toLowerCase().endsWith('.mp3')) return null;
+export async function extractEmbeddedMetadata(song: Song): Promise<EmbeddedMetadata | null> {
+  if (!song.uri.toLowerCase().endsWith('.mp3')) return {};
 
   try {
     await ensureDir();
 
-    // Fast path: already extracted in a previous session.
-    for (const ext of ['jpg', 'png', 'webp']) {
-      const cached = `${ARTWORK_DIR}${song.id}.${ext}`;
-      const info = await FileSystem.getInfoAsync(cached);
-      if (info.exists) return info.size && info.size > 0 ? cached : null;
-    }
-
     const header = await readBytes(song.uri, 0, 10);
-    if (header[0] !== 0x49 || header[1] !== 0x44 || header[2] !== 0x33) return null; // "ID3"
+    if (header[0] !== 0x49 || header[1] !== 0x44 || header[2] !== 0x33) return {}; // not "ID3"
 
     const major = header[3];
     const tagSize = readSynchsafe(header, 6);
-    if (tagSize <= 0 || tagSize > 20_000_000) return null;
+    if (tagSize <= 0 || tagSize > 20_000_000) return {};
 
     const tag = await readBytes(song.uri, 0, tagSize + 10);
-    const pic = parseApic(tag, major);
-    if (!pic || pic.data.length < 100) return null;
+    const tags = parseTag(tag, major);
 
-    const out = `${ARTWORK_DIR}${song.id}.${extFromMime(pic.mime)}`;
-    await FileSystem.writeAsStringAsync(out, bytesToBase64(pic.data), {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    return out;
+    let artwork: string | undefined;
+    if (tags.picture && tags.picture.data.length >= 100) {
+      const out = `${ARTWORK_DIR}${song.id}.${extFromMime(tags.picture.mime)}`;
+      const info = await FileSystem.getInfoAsync(out);
+      if (!info.exists) {
+        await FileSystem.writeAsStringAsync(out, bytesToBase64(tags.picture.data), {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
+      artwork = out;
+    }
+
+    return {
+      title: tags.title || undefined,
+      artist: tags.artist || undefined,
+      album: tags.album || undefined,
+      artwork,
+    };
   } catch {
     return null;
   }
 }
 
 /**
- * Walks a list of songs and resolves embedded artwork for any MP3 that lacks
- * it, invoking `onArtwork` as each image becomes available. Runs with limited
- * concurrency so a large library doesn't stall the JS thread.
+ * True when a song's stored artwork URI still points at a real file inside our
+ * persistent directory. Legacy cache-dir paths (which the OS can purge) are
+ * treated as invalid so they get re-extracted into the persistent location.
  */
-export async function enrichSongsWithArtwork(
+async function artworkStillValid(uri: string | undefined): Promise<boolean> {
+  if (!uri) return false;
+  if (!uri.startsWith(ARTWORK_DIR)) return false; // legacy cache path → refresh
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return !!info.exists;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Walks a list of songs and resolves embedded metadata (title/artist/album +
+ * cover art), invoking `onMetadata` as each result becomes available. Runs with
+ * limited concurrency so a large library doesn't stall the JS thread.
+ *
+ * Two kinds of work happen here:
+ *  - MP3s never read before → full tag parse (title/artist/album + art).
+ *  - MP3s already read but whose cached art file went missing (OS purge) or
+ *    lives in the old cache directory → re-extract just the cover so the
+ *    player/list never end up pointing at a dangling file.
+ */
+export async function enrichSongsWithMetadata(
   songs: Song[],
-  onArtwork: (songId: string, uri: string) => void,
+  onMetadata: (songId: string, meta: EmbeddedMetadata) => void,
   concurrency = 3,
 ): Promise<void> {
-  const targets = songs.filter((s) => !s.artwork && s.uri.toLowerCase().endsWith('.mp3'));
+  const targets = songs.filter(
+    (s) => s.uri.toLowerCase().endsWith('.mp3') && (!s.tagsRead || !!s.artwork),
+  );
   let cursor = 0;
 
   async function worker() {
     while (cursor < targets.length) {
       const song = targets[cursor++];
-      const uri = await extractArtwork(song);
-      if (uri) onArtwork(song.id, uri);
+      if (!song.tagsRead) {
+        const meta = await extractEmbeddedMetadata(song);
+        // `null` = read failure (retry next session); any object = mark as read.
+        if (meta) onMetadata(song.id, meta);
+        continue;
+      }
+      // Already read: only do work if the cached cover is gone/stale.
+      if (await artworkStillValid(song.artwork)) continue;
+      const meta = await extractEmbeddedMetadata(song);
+      if (meta?.artwork) onMetadata(song.id, { artwork: meta.artwork });
     }
   }
 

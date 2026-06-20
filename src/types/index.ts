@@ -25,6 +25,9 @@ export type Song = {
   modifiedAt?: number;
   /** Creation / date-added time (ms epoch), used by the "Newly added" playlist */
   addedAt?: number;
+  /** True once we've attempted to read the embedded ID3 tag (title/artist/art),
+   *  so we don't re-parse the file on every launch/scan. */
+  tagsRead?: boolean;
 };
 
 export type Playlist = {
@@ -66,6 +69,17 @@ export type PlaybackSettings = {
   crossfade: boolean;
   resumeLastPlayed: boolean;
   autoPlayOnLaunch: boolean;
+  /** Pause playback automatically when headphones / Bluetooth audio disconnect. */
+  pauseOnHeadphonesDisconnect: boolean;
+};
+
+export type EqualizerSettings = {
+  /** Master on/off for the equalizer. */
+  enabled: boolean;
+  /** Id of the active preset, or 'custom' when bands were edited by hand. */
+  preset: string;
+  /** Gain in dB for each frequency band (see `EQ_BANDS`), range -12..+12. */
+  gains: number[];
 };
 
 export type LibrarySettings = {
@@ -89,6 +103,7 @@ export type AppSettings = {
   playback: PlaybackSettings;
   library: LibrarySettings;
   theme: ThemeSettings;
+  equalizer: EqualizerSettings;
 };
 
 export type FolderGroup = {

@@ -26,6 +26,12 @@ type MusicStoreState = {
   setSongs: (songs: Song[]) => void;
   /** Attach a resolved (embedded/extracted) artwork URI to a single song. */
   setSongArtwork: (songId: string, artwork: string) => void;
+  /** Merge embedded-tag metadata (title/artist/album/artwork) into a song and
+   *  mark it as read so we don't re-parse it. */
+  applySongMetadata: (
+    songId: string,
+    meta: { title?: string; artist?: string; album?: string; artwork?: string },
+  ) => void;
   setLoadState: (state: LoadState, error?: string | null) => void;
 
   /** Play a song from a source list (sets the queue to that list, starting at the given song). */
@@ -111,7 +117,26 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
   durationSeconds: 0,
 
   setSongs: (songs) => {
-    const sorted = sortSongsByTitle(songs);
+    // Preserve metadata we already enriched (embedded title/artist/album/art)
+    // so a re-scan doesn't clobber it back to the filename-derived values.
+    const prevById = get().songsById;
+    const merged = songs.map((s) => {
+      const prev = prevById[s.id];
+      if (prev?.tagsRead) {
+        return {
+          ...s,
+          title: prev.title || s.title,
+          artist: prev.artist || s.artist,
+          album: prev.album || s.album,
+          artwork: prev.artwork ?? s.artwork,
+          tagsRead: true,
+        };
+      }
+      if (prev?.artwork && !s.artwork) return { ...s, artwork: prev.artwork };
+      return s;
+    });
+
+    const sorted = sortSongsByTitle(merged);
     const byId: Record<string, Song> = {};
     for (const s of sorted) byId[s.id] = s;
     set({
@@ -127,6 +152,25 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
     const existing = songsById[songId];
     if (!existing || existing.artwork === artwork) return;
     const updated = { ...existing, artwork };
+    const nextById = { ...songsById, [songId]: updated };
+    const nextSongs = songs.map((s) => (s.id === songId ? updated : s));
+    set({ songsById: nextById, songs: nextSongs });
+    persistSongsCacheDebounced(nextSongs);
+  },
+
+  applySongMetadata: (songId, meta) => {
+    const { songsById, songs } = get();
+    const existing = songsById[songId];
+    if (!existing) return;
+    const updated: Song = {
+      ...existing,
+      // Embedded tags win over filename-derived values when present.
+      title: meta.title?.trim() || existing.title,
+      artist: meta.artist?.trim() || existing.artist,
+      album: meta.album?.trim() || existing.album,
+      artwork: meta.artwork ?? existing.artwork,
+      tagsRead: true,
+    };
     const nextById = { ...songsById, [songId]: updated };
     const nextSongs = songs.map((s) => (s.id === songId ? updated : s));
     set({ songsById: nextById, songs: nextSongs });

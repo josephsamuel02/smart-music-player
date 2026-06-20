@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
     crossfade: false,
     resumeLastPlayed: true,
     autoPlayOnLaunch: false,
+    pauseOnHeadphonesDisconnect: true,
   },
   library: {
     showHiddenAudio: false,
@@ -43,5 +44,10 @@ export const DEFAULT_SETTINGS = {
     backgroundId: 'default',
     customBackgroundUri: undefined as string | undefined,
     customBackgroundDim: 0.45,
+  },
+  equalizer: {
+    enabled: false,
+    preset: 'flat',
+    gains: [0, 0, 0, 0, 0],
   },
 };

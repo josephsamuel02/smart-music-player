@@ -80,14 +80,14 @@ export function MiniPlayer({ extraBottom = 0 }: { extraBottom?: number }) {
     router.push('/player');
   };
 
-  // Solid (but theme-tinted) base so list content never shows through the bar
-  // as the user scrolls. The GlassCard's frost + sheen still render on top, so
-  // it keeps the glassmorphic look while staying opaque.
+  // Theme-tinted base so list content doesn't read through the bar as the user
+  // scrolls. Kept *slightly* translucent (alpha < 1) so a hint of what's behind
+  // shows through while the GlassCard frost + sheen keep the glassmorphic look.
   const [tr, tg, tb] = theme.backgroundTintRgb;
-  const backdropColor = `rgb(${Math.min(255, tr + 22)}, ${Math.min(255, tg + 18)}, ${Math.min(
+  const backdropColor = `rgba(${Math.min(255, tr + 22)}, ${Math.min(255, tg + 18)}, ${Math.min(
     255,
     tb + 36,
-  )})`;
+  )}, 0.86)`;
 
   return (
     <Animated.View

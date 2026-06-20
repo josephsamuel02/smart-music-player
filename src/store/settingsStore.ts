@@ -2,12 +2,14 @@ import { create } from 'zustand';
 import * as FileSystem from 'expo-file-system/legacy';
 import type {
   AppSettings,
+  EqualizerSettings,
   GlassSettings,
   LibrarySettings,
   PlaybackSettings,
   ThemeSettings,
 } from '@/types';
 import { DEFAULT_SETTINGS, StorageKeys } from '@/constants/audio';
+import { sanitizeEqualizer } from '@/constants/equalizer';
 import { StorageService } from '@/services/StorageService';
 
 type SettingsStoreState = AppSettings & {
@@ -17,6 +19,7 @@ type SettingsStoreState = AppSettings & {
   updatePlayback: (partial: Partial<PlaybackSettings>) => void;
   updateLibrary: (partial: Partial<LibrarySettings>) => void;
   updateTheme: (partial: Partial<ThemeSettings>) => void;
+  updateEqualizer: (partial: Partial<EqualizerSettings>) => void;
   /** Copy a picked image into the document directory and remember its URI.
    *  Pass `null` to clear the current custom background. */
   setCustomBackground: (sourceUri: string | null) => Promise<void>;
@@ -29,6 +32,7 @@ function persist(state: AppSettings) {
     playback: state.playback,
     library: state.library,
     theme: state.theme,
+    equalizer: state.equalizer,
   });
 }
 
@@ -97,6 +101,7 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
         playback: { ...DEFAULT_SETTINGS.playback, ...stored.playback },
         library: { ...DEFAULT_SETTINGS.library, ...stored.library },
         theme,
+        equalizer: sanitizeEqualizer({ ...DEFAULT_SETTINGS.equalizer, ...stored.equalizer }),
         hydrated: true,
       });
     } else {
@@ -126,6 +131,12 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     const theme = sanitizeTheme({ ...get().theme, ...partial });
     set({ theme });
     persist({ ...get(), theme });
+  },
+
+  updateEqualizer: (partial) => {
+    const equalizer = sanitizeEqualizer({ ...get().equalizer, ...partial });
+    set({ equalizer });
+    persist({ ...get(), equalizer });
   },
 
   setCustomBackground: async (sourceUri) => {

@@ -42,6 +42,14 @@ export function Artwork({ uri, size, radius, seed = '', style }: Props) {
   const r = radius ?? Math.round(size * 0.18);
   const palette = GRADIENT_PAIRS[hashSeed(seed) % GRADIENT_PAIRS.length];
 
+  // If the resolved artwork file is missing/corrupt (e.g. the OS purged the
+  // cache), fall back to the gradient placeholder instead of a blank box.
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+  const showImage = !!uri && !failed;
+
   return (
     <View
       style={[
@@ -50,12 +58,13 @@ export function Artwork({ uri, size, radius, seed = '', style }: Props) {
         style,
       ]}
     >
-      {uri ? (
+      {showImage ? (
         <Image
-          source={{ uri }}
+          source={{ uri: uri! }}
           style={[styles.image, { borderRadius: r }]}
           contentFit="cover"
           transition={150}
+          onError={() => setFailed(true)}
         />
       ) : (
         <>

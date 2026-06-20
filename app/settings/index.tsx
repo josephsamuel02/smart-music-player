@@ -15,7 +15,11 @@ type MenuItem = {
   title: string;
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
-  href: '/settings/glassmorphism' | '/settings/themes' | '/settings/playback';
+  href:
+    | '/settings/glassmorphism'
+    | '/settings/themes'
+    | '/settings/playback'
+    | '/settings/equalizer';
 };
 
 const MENU: readonly MenuItem[] = [
@@ -36,9 +40,16 @@ const MENU: readonly MenuItem[] = [
   {
     id: 'play',
     title: 'Play settings',
-    subtitle: 'Crossfade, resume on launch, library scan.',
+    subtitle: 'Crossfade, resume on launch, pause on unplug, library scan.',
     icon: 'play-circle-outline',
     href: '/settings/playback',
+  },
+  {
+    id: 'equalizer',
+    title: 'Equalizer',
+    subtitle: 'Presets and per-band tuning for your sound.',
+    icon: 'options-outline',
+    href: '/settings/equalizer',
   },
 ] as const;
 
