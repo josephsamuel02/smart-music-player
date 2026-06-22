@@ -5,6 +5,18 @@
  */
 const SCHEME = 'smartmusic';
 
+/**
+ * Click-action names for the transport buttons. These are *not* `OPEN_URI` /
+ * `OPEN_APP`, so tapping them runs the widget task handler in the background
+ * (see `widget-task-handler.tsx`) instead of launching the app.
+ */
+export const WidgetClickAction = {
+  PlayPause: 'PLAYPAUSE',
+  Next: 'NEXT',
+  Previous: 'PREVIOUS',
+  Play: 'PLAY',
+} as const;
+
 export type WidgetAction =
   | { action: 'playpause' }
   | { action: 'next' }

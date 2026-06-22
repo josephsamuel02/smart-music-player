@@ -2,12 +2,17 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { Song } from '@/types';
 
 /**
- * Extracts embedded album art from local audio files (best-effort, pure JS).
+ * Extracts embedded tags (title/artist/album) and album art from local audio
+ * files (best-effort, pure JS).
  *
- * Supports the common case: MP3 files with an ID3v2 tag containing an APIC
- * (attached picture) frame — covers ID3v2.2 (PIC), 2.3 and 2.4. Other
- * containers (FLAC/M4A/OGG) are skipped and fall back to the gradient
- * placeholder, matching the "songs without an image" behaviour.
+ * Supported containers:
+ *  - MP3  — ID3v2.2 (PIC) / 2.3 / 2.4 text + APIC frames
+ *  - M4A/MP4/AAC — iTunes-style metadata atoms (©nam/©ART/©alb/covr)
+ *  - Opus/Ogg — Vorbis comments (TITLE/ARTIST/ALBUM)
+ *  - FLAC — Vorbis comments + PICTURE block
+ *
+ * Anything else falls back to the filename-derived name and the gradient
+ * placeholder.
  *
  * Extracted images are written once to a persistent directory and reused on
  * subsequent launches, so the expensive parse only happens a single time.
@@ -18,6 +23,9 @@ import type { Song } from '@/types';
  */
 
 const ARTWORK_DIR = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory}artwork/`;
+
+/** Audio containers we know how to read embedded tags from. */
+const TAGGABLE_RE = /\.(mp3|m4a|mp4|m4b|aac|opus|ogg|oga|flac)$/;
 const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 const B64_LOOKUP = (() => {
@@ -276,30 +284,291 @@ export type EmbeddedMetadata = {
   artwork?: string;
 };
 
+function readUint32LE(b: Uint8Array, o: number): number {
+  return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 0x1000000;
+}
+
+/** Find the byte offset of an ASCII signature inside a buffer (or -1). */
+function indexOfAscii(buf: Uint8Array, sig: string, from = 0): number {
+  outer: for (let i = from; i <= buf.length - sig.length; i++) {
+    for (let j = 0; j < sig.length; j++) {
+      if (buf[i + j] !== sig.charCodeAt(j)) continue outer;
+    }
+    return i;
+  }
+  return -1;
+}
+
+// ---------------------------------------------------------------------------
+// MP3 / ID3v2
+// ---------------------------------------------------------------------------
+
+async function parseMp3Tags(uri: string): Promise<Id3Tags> {
+  try {
+    const header = await readBytes(uri, 0, 10);
+    if (header[0] !== 0x49 || header[1] !== 0x44 || header[2] !== 0x33) return {}; // not "ID3"
+    const major = header[3];
+    const tagSize = readSynchsafe(header, 6);
+    if (tagSize <= 0 || tagSize > 20_000_000) return {};
+    const tag = await readBytes(uri, 0, tagSize + 10);
+    return parseTag(tag, major);
+  } catch {
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MP4 / M4A (iTunes-style metadata atoms)
+// ---------------------------------------------------------------------------
+
+type Atom = { type: string; size: number; headerLen: number };
+
+async function readAtomHeader(uri: string, pos: number): Promise<Atom | null> {
+  const b = await readBytes(uri, pos, 16);
+  if (b.length < 8) return null;
+  let size = readUint32BE(b, 0);
+  let headerLen = 8;
+  if (size === 1) {
+    if (b.length < 16) return null;
+    // 64-bit size (we cap to a safe JS integer; metadata atoms are tiny anyway)
+    size = readUint32BE(b, 8) * 0x100000000 + readUint32BE(b, 12);
+    headerLen = 16;
+  }
+  const type = String.fromCharCode(b[4], b[5], b[6], b[7]);
+  return { type, size, headerLen };
+}
+
+/** Locate a direct child atom of `type` within [start, end). */
+async function findAtom(
+  uri: string,
+  type: string,
+  start: number,
+  end: number,
+): Promise<{ contentStart: number; contentEnd: number } | null> {
+  let pos = start;
+  while (pos + 8 <= end) {
+    const a = await readAtomHeader(uri, pos);
+    if (!a) break;
+    let size = a.size;
+    if (size === 0) size = end - pos; // extends to container end
+    if (size < a.headerLen) break;
+    if (a.type === type) {
+      return { contentStart: pos + a.headerLen, contentEnd: pos + size };
+    }
+    pos += size;
+  }
+  return null;
+}
+
+async function parseMp4Tags(uri: string): Promise<Id3Tags> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    const fileEnd = info.exists && info.size && info.size > 0 ? info.size : Number.MAX_SAFE_INTEGER;
+
+    const moov = await findAtom(uri, 'moov', 0, fileEnd);
+    if (!moov) return {};
+    const udta = await findAtom(uri, 'udta', moov.contentStart, moov.contentEnd);
+    if (!udta) return {};
+    const meta = await findAtom(uri, 'meta', udta.contentStart, udta.contentEnd);
+    if (!meta) return {};
+    // `meta` carries a 4-byte version/flags field before its child atoms.
+    const ilst = await findAtom(uri, 'ilst', meta.contentStart + 4, meta.contentEnd);
+    if (!ilst) return {};
+
+    const result: Id3Tags = {};
+    const NAME = '\u00A9nam';
+    const ARTIST = '\u00A9ART';
+    const ALBUM = '\u00A9alb';
+
+    let pos = ilst.contentStart;
+    while (pos + 8 <= ilst.contentEnd) {
+      const a = await readAtomHeader(uri, pos);
+      if (!a) break;
+      let size = a.size;
+      if (size === 0) size = ilst.contentEnd - pos;
+      if (size < a.headerLen) break;
+
+      if (a.type === NAME || a.type === ARTIST || a.type === ALBUM || a.type === 'covr') {
+        const data = await findAtom(uri, 'data', pos + a.headerLen, pos + size);
+        if (data) {
+          // `data` content = [4-byte type][4-byte locale][value]
+          const valStart = data.contentStart + 8;
+          const valLen = data.contentEnd - valStart;
+          if (valLen > 0 && valLen < 8_000_000) {
+            const bytes = await readBytes(uri, valStart, valLen);
+            if (a.type === 'covr') {
+              if (!result.picture) {
+                const mime = bytes[0] === 0x89 ? 'image/png' : 'image/jpeg';
+                result.picture = { mime, data: bytes };
+              }
+            } else {
+              const text = decodeUtf8(bytes).trim();
+              if (a.type === NAME && !result.title) result.title = text;
+              else if (a.type === ARTIST && !result.artist) result.artist = text;
+              else if (a.type === ALBUM && !result.album) result.album = text;
+            }
+          }
+        }
+      }
+      pos += size;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Vorbis comments (shared by Ogg/Opus and FLAC)
+// ---------------------------------------------------------------------------
+
+function parseVorbisComments(buf: Uint8Array, start: number): Id3Tags {
+  const result: Id3Tags = {};
+  let p = start;
+  const end = buf.length;
+  if (p + 4 > end) return result;
+  const vendorLen = readUint32LE(buf, p);
+  p += 4;
+  if (vendorLen < 0 || p + vendorLen + 4 > end) return result;
+  p += vendorLen; // skip vendor string
+  let count = readUint32LE(buf, p);
+  p += 4;
+  if (count < 0) return result;
+  if (count > 512) count = 512; // sanity cap
+  for (let i = 0; i < count; i++) {
+    if (p + 4 > end) break;
+    const len = readUint32LE(buf, p);
+    p += 4;
+    if (len <= 0 || len > 200_000 || p + len > end) break;
+    const field = decodeUtf8(buf.subarray(p, p + len));
+    p += len;
+    const eq = field.indexOf('=');
+    if (eq > 0) {
+      const key = field.slice(0, eq).toUpperCase();
+      const val = field.slice(eq + 1).trim();
+      if (key === 'TITLE' && !result.title) result.title = val;
+      else if (key === 'ARTIST' && !result.artist) result.artist = val;
+      else if (key === 'ALBUM' && !result.album) result.album = val;
+    }
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Ogg / Opus
+// ---------------------------------------------------------------------------
+
+async function parseOggTags(uri: string): Promise<Id3Tags> {
+  try {
+    // The comment header sits right after the ID header in the first Ogg pages;
+    // a small window is enough for the title/artist/album fields.
+    const buf = await readBytes(uri, 0, 32 * 1024);
+
+    // Opus: "OpusTags" marks the start of a Vorbis-comment payload.
+    const opus = indexOfAscii(buf, 'OpusTags');
+    if (opus >= 0) return parseVorbisComments(buf, opus + 8);
+
+    // Vorbis: the comment header packet begins with 0x03 then "vorbis".
+    for (let i = 0; i <= buf.length - 7; i++) {
+      if (
+        buf[i] === 0x03 &&
+        buf[i + 1] === 0x76 && // v
+        buf[i + 2] === 0x6f && // o
+        buf[i + 3] === 0x72 && // r
+        buf[i + 4] === 0x62 && // b
+        buf[i + 5] === 0x69 && // i
+        buf[i + 6] === 0x73 // s
+      ) {
+        return parseVorbisComments(buf, i + 7);
+      }
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FLAC (native, not Ogg-wrapped)
+// ---------------------------------------------------------------------------
+
+function parseFlacPicture(b: Uint8Array): Picture | null {
+  let p = 4; // skip picture-type
+  if (p + 4 > b.length) return null;
+  const mimeLen = readUint32BE(b, p);
+  p += 4;
+  if (p + mimeLen + 4 > b.length) return null;
+  let mime = '';
+  for (let i = 0; i < mimeLen; i++) mime += String.fromCharCode(b[p + i]);
+  p += mimeLen;
+  const descLen = readUint32BE(b, p);
+  p += 4;
+  p += descLen + 16; // description + width/height/depth/colors
+  if (p + 4 > b.length) return null;
+  const dataLen = readUint32BE(b, p);
+  p += 4;
+  if (dataLen <= 0 || p + dataLen > b.length) return null;
+  return { mime: mime || 'image/jpeg', data: b.subarray(p, p + dataLen) };
+}
+
+async function parseFlacTags(uri: string): Promise<Id3Tags> {
+  try {
+    const head = await readBytes(uri, 0, 4);
+    if (head[0] !== 0x66 || head[1] !== 0x4c || head[2] !== 0x61 || head[3] !== 0x43) return {}; // "fLaC"
+
+    const result: Id3Tags = {};
+    let pos = 4;
+    for (let guard = 0; guard < 128; guard++) {
+      const hdr = await readBytes(uri, pos, 4);
+      if (hdr.length < 4) break;
+      const last = (hdr[0] & 0x80) !== 0;
+      const type = hdr[0] & 0x7f;
+      const len = readUint24BE(hdr, 1);
+      const blockStart = pos + 4;
+
+      if (type === 4) {
+        // VORBIS_COMMENT
+        const block = await readBytes(uri, blockStart, Math.min(len, 1_000_000));
+        Object.assign(result, parseVorbisComments(block, 0));
+      } else if (type === 6 && !result.picture) {
+        // PICTURE
+        const block = await readBytes(uri, blockStart, Math.min(len, 8_000_000));
+        const pic = parseFlacPicture(block);
+        if (pic) result.picture = pic;
+      }
+
+      pos = blockStart + len;
+      if (last) break;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Reads the embedded ID3 tag of an MP3 once and returns the title/artist/album
- * text plus a cached URI for the cover art. Returns `null` only when the file
- * could not be read (so the caller can retry later); an empty object means the
- * file was read but had no usable tags.
+ * Reads embedded tags from a local audio file and returns the title/artist/album
+ * text plus a cached URI for the cover art. Returns `null` only when something
+ * unexpected failed; an empty object means the file was read but had no usable
+ * tags.
  *
- * This is what lets WhatsApp-style files (e.g. `AUD-…-WA0001.mp3`) show their
- * real song name instead of the cryptic filename, mirroring other players.
+ * Supports MP3 (ID3v2), MP4/M4A (iTunes atoms), Ogg/Opus & FLAC (Vorbis
+ * comments). This is what lets WhatsApp-style files (e.g. `AUD-…-WA0001.opus`
+ * or `.m4a`) show their real song name instead of the cryptic filename, just
+ * like other music players.
  */
 export async function extractEmbeddedMetadata(song: Song): Promise<EmbeddedMetadata | null> {
-  if (!song.uri.toLowerCase().endsWith('.mp3')) return {};
+  const lower = song.uri.toLowerCase();
 
   try {
     await ensureDir();
 
-    const header = await readBytes(song.uri, 0, 10);
-    if (header[0] !== 0x49 || header[1] !== 0x44 || header[2] !== 0x33) return {}; // not "ID3"
-
-    const major = header[3];
-    const tagSize = readSynchsafe(header, 6);
-    if (tagSize <= 0 || tagSize > 20_000_000) return {};
-
-    const tag = await readBytes(song.uri, 0, tagSize + 10);
-    const tags = parseTag(tag, major);
+    let tags: Id3Tags;
+    if (lower.endsWith('.mp3')) tags = await parseMp3Tags(song.uri);
+    else if (/\.(m4a|mp4|m4b|aac)$/.test(lower)) tags = await parseMp4Tags(song.uri);
+    else if (/\.(opus|ogg|oga)$/.test(lower)) tags = await parseOggTags(song.uri);
+    else if (lower.endsWith('.flac')) tags = await parseFlacTags(song.uri);
+    else return {};
 
     let artwork: string | undefined;
     if (tags.picture && tags.picture.data.length >= 100) {
@@ -357,7 +626,7 @@ export async function enrichSongsWithMetadata(
   concurrency = 3,
 ): Promise<void> {
   const targets = songs.filter(
-    (s) => s.uri.toLowerCase().endsWith('.mp3') && (!s.tagsRead || !!s.artwork),
+    (s) => TAGGABLE_RE.test(s.uri.toLowerCase()) && (!s.tagsRead || !!s.artwork),
   );
   let cursor = 0;
 

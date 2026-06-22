@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlexWidget, ListWidget, TextWidget } from 'react-native-android-widget';
-import { buildWidgetUri } from '@/utils/widgetLinks';
+import { buildWidgetUri, WidgetClickAction } from '@/utils/widgetLinks';
 import { EMPTY_WIDGET_DATA, WidgetTheme, type WidgetData } from './widgetData';
 
 const ICON_PREV = '\u23EE';
@@ -12,19 +12,20 @@ type Props = { data?: WidgetData };
 
 function ControlButton({
   label,
-  uri,
+  action,
   primary,
   size = 40,
 }: {
   label: string;
-  uri: string;
+  action: string;
   primary?: boolean;
   size?: number;
 }) {
   return (
     <FlexWidget
-      clickAction="OPEN_URI"
-      clickActionData={{ uri }}
+      // A custom (non OPEN_URI/OPEN_APP) action runs the headless task handler
+      // in the background, so the transport works without opening the app.
+      clickAction={action}
       style={{
         width: size,
         height: size,
@@ -83,7 +84,7 @@ export function MusicWidgetSmall({ data = EMPTY_WIDGET_DATA }: Props) {
       <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
         <ControlButton
           label={data.isPlaying ? ICON_PAUSE : ICON_PLAY}
-          uri={buildWidgetUri({ action: 'playpause' })}
+          action={WidgetClickAction.PlayPause}
           primary
           size={40}
         />
@@ -115,16 +116,16 @@ export function MusicWidgetMedium({ data = EMPTY_WIDGET_DATA }: Props) {
           marginTop: 14,
         }}
       >
-        <ControlButton label={ICON_PREV} uri={buildWidgetUri({ action: 'previous' })} size={44} />
+        <ControlButton label={ICON_PREV} action={WidgetClickAction.Previous} size={44} />
         <FlexWidget style={{ width: 14, height: 1 }} />
         <ControlButton
           label={data.isPlaying ? ICON_PAUSE : ICON_PLAY}
-          uri={buildWidgetUri({ action: 'playpause' })}
+          action={WidgetClickAction.PlayPause}
           primary
           size={54}
         />
         <FlexWidget style={{ width: 14, height: 1 }} />
-        <ControlButton label={ICON_NEXT} uri={buildWidgetUri({ action: 'next' })} size={44} />
+        <ControlButton label={ICON_NEXT} action={WidgetClickAction.Next} size={44} />
       </FlexWidget>
     </FlexWidget>
   );
@@ -145,16 +146,16 @@ export function MusicWidgetLarge({ data = EMPTY_WIDGET_DATA }: Props) {
     >
       <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', width: 'match_parent' }}>
         <NowPlayingText data={data} />
-        <ControlButton label={ICON_PREV} uri={buildWidgetUri({ action: 'previous' })} size={40} />
+        <ControlButton label={ICON_PREV} action={WidgetClickAction.Previous} size={40} />
         <FlexWidget style={{ width: 8, height: 1 }} />
         <ControlButton
           label={data.isPlaying ? ICON_PAUSE : ICON_PLAY}
-          uri={buildWidgetUri({ action: 'playpause' })}
+          action={WidgetClickAction.PlayPause}
           primary
           size={46}
         />
         <FlexWidget style={{ width: 8, height: 1 }} />
-        <ControlButton label={ICON_NEXT} uri={buildWidgetUri({ action: 'next' })} size={40} />
+        <ControlButton label={ICON_NEXT} action={WidgetClickAction.Next} size={40} />
       </FlexWidget>
 
       <FlexWidget
@@ -185,8 +186,8 @@ export function MusicWidgetLarge({ data = EMPTY_WIDGET_DATA }: Props) {
           data.songs.map((song) => (
             <FlexWidget
               key={song.id}
-              clickAction="OPEN_URI"
-              clickActionData={{ uri: buildWidgetUri({ action: 'play', songId: song.id }) }}
+              clickAction={WidgetClickAction.Play}
+              clickActionData={{ songId: song.id }}
               style={{
                 width: 'match_parent',
                 height: 56,

@@ -1,0 +1,7 @@
+{
+  "name": "expo-media-store",
+  "version": "0.1.0",
+  "description": "Reads Android MediaStore audio metadata (title/artist/album).",
+  "main": "index.ts",
+  "private": true
+}

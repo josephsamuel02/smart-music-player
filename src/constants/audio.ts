@@ -11,7 +11,7 @@ export const SUPPORTED_AUDIO_EXTENSIONS = [
 
 export type SupportedAudioExtension = (typeof SUPPORTED_AUDIO_EXTENSIONS)[number];
 
-/** AsyncStorage keys (single source of truth). */
+/** AsyncStorage keys (single source of truth) */
 export const StorageKeys = {
   songsCache: '@smartmusic/songsCache/v1',
   likedSongs: '@smartmusic/likedSongs/v1',

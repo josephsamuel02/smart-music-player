@@ -2,6 +2,7 @@ import * as MediaLibrary from 'expo-media-library';
 import type { Song } from '@/types';
 import { SUPPORTED_AUDIO_EXTENSIONS } from '@/constants/audio';
 import { basename, dirname, isNumericTitle, parseFilenameForMetadata } from '@/utils/format';
+import { loadMediaStoreTags } from './MediaStoreTags';
 
 const PAGE_SIZE = 200;
 
@@ -31,6 +32,10 @@ export async function scanDeviceForSongs(options?: {
   let after: string | undefined;
   let hasNextPage = true;
 
+  // Pull the system's already-scanned audio metadata once. This is what other
+  // players use to show real titles for files with opaque names (WhatsApp etc).
+  const mediaTags = await loadMediaStoreTags();
+
   while (hasNextPage) {
     const page = await MediaLibrary.getAssetsAsync({
       mediaType: MediaLibrary.MediaType.audio,
@@ -52,21 +57,24 @@ export async function scanDeviceForSongs(options?: {
       const meta = parseFilenameForMetadata(filename);
       const folderPath = dirname(asset.uri);
       const folder = basename(folderPath) || 'Music';
+      const ms = mediaTags.get(asset.id);
 
+      // Prefer the system MediaStore title (real song name where available),
+      // then a "Artist - Title" parsed from the filename, then the bare name.
+      let title = ms?.title || meta.title || filename.replace(/\.[^.]+$/, '');
       // When the title is just a number (e.g. "12.mp3"), fall back to other
       // available information so the list shows something meaningful. We keep
       // the number as a suffix so tracks in the same folder stay distinct.
-      let title = meta.title || filename.replace(/\.[^.]+$/, '');
       if (isNumericTitle(title)) {
-        const base = meta.artist || meta.album || (folder !== 'Music' ? folder : '');
+        const base = ms?.artist || meta.artist || meta.album || (folder !== 'Music' ? folder : '');
         if (base) title = `${base} ${title.trim()}`;
       }
 
       songs.push({
         id: asset.id,
         title,
-        artist: meta.artist || 'Unknown Artist',
-        album: meta.album || folder || 'Unknown Album',
+        artist: ms?.artist || meta.artist || 'Unknown Artist',
+        album: ms?.album || meta.album || folder || 'Unknown Album',
         duration: asset.duration ?? 0,
         uri: asset.uri,
         folder,
