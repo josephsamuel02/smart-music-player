@@ -26,7 +26,7 @@
       }
     },
     "android": {
-      "package": "com.smartmusic.app",
+      "package": "com.smartmusicplayer.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#120A2E"
