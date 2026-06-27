@@ -1,0 +1,7 @@
+{
+  "name": "expo-audio-route",
+  "version": "0.1.0",
+  "description": "Emits an event when Android audio output 'becomes noisy' (headphones / Bluetooth disconnected).",
+  "main": "index.ts",
+  "private": true
+}

@@ -8,9 +8,7 @@
     "scheme": "smartmusic",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -18,15 +16,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.smartmusicplayer.app",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ],
+        "UIBackgroundModes": ["audio"],
         "NSAppleMusicUsageDescription": "Allow $(PRODUCT_NAME) to read music from your library.",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to read media for album artwork."
       }
     },
     "android": {
       "package": "com.smartmusicplayer.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#120A2E"

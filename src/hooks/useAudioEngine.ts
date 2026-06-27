@@ -8,9 +8,25 @@ import {
 import { selectCurrentSong, useMusicStore } from '@/store/musicStore';
 import { useStatsStore } from '@/store/statsStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { addAudioBecomingNoisyListener } from '@/services/AudioRoute';
 
 /** Module-level ref to the live player so non-root consumers can call seek. */
 let seekFn: ((seconds: number) => void) | null = null;
+
+/** Shape the lock-screen / media notification metadata from a song. */
+function lockScreenMetadata(song: {
+  title: string;
+  artist: string;
+  album: string;
+  artwork?: string;
+}) {
+  return {
+    title: song.title,
+    artist: song.artist,
+    albumTitle: song.album,
+    artworkUrl: song.artwork,
+  };
+}
 
 /**
  * Call this from anywhere to seek the active player. Safe to call before the
@@ -47,12 +63,13 @@ export function useAudioEngine() {
   // Timestamp of the most recent track swap. Used to ignore a stale
   // `didJustFinish` that the native player can emit right after `replace`.
   const lastReplaceAtRef = useRef<number>(0);
-  // Timestamp of the most recent "start playing" intent, so the disconnect
-  // detector doesn't misread the brief gap before play() takes effect.
-  const lastPlayIntentAtRef = useRef<number>(0);
   // Tracks which song id has already been counted for the current load, so a
   // pause/resume of the same track doesn't inflate the play count.
   const countedSongIdRef = useRef<string | null>(null);
+  // Whether we currently own the lock-screen / media notification. We arm it
+  // while playing and clear it on pause/stop so the notification stays
+  // dismissible instead of getting stuck as an ongoing notification.
+  const lockScreenActiveRef = useRef(false);
 
   // 1) Configure audio mode for background playback / lock screen.
   useEffect(() => {
@@ -72,6 +89,15 @@ export function useAudioEngine() {
       } catch {
         // player may already be released
       }
+      // Nothing to play: tear down the media notification so it goes away.
+      try {
+        if (lockScreenActiveRef.current) {
+          player.clearLockScreenControls?.();
+          lockScreenActiveRef.current = false;
+        }
+      } catch {
+        // ignore
+      }
       return;
     }
     if (loadedSongIdRef.current === current.id) return;
@@ -82,19 +108,22 @@ export function useAudioEngine() {
 
     try {
       player.replace({ uri: current.uri });
-      player.setActiveForLockScreen?.(true, {
-        title: current.title,
-        artist: current.artist,
-        albumTitle: current.album,
-        artworkUrl: current.artwork,
-      });
+      const meta = lockScreenMetadata(current);
       if (isPlaying) {
-        lastPlayIntentAtRef.current = Date.now();
+        // Arm (or refresh) the media notification only while playing.
+        if (lockScreenActiveRef.current) {
+          player.updateLockScreenMetadata?.(meta);
+        } else {
+          player.setActiveForLockScreen?.(true, meta);
+          lockScreenActiveRef.current = true;
+        }
         player.play();
         if (countedSongIdRef.current !== current.id) {
           countedSongIdRef.current = current.id;
           recordPlay(current.id);
         }
+      } else if (lockScreenActiveRef.current) {
+        player.updateLockScreenMetadata?.(meta);
       }
     } catch {
       const nextId = onTrackFinished();
@@ -107,7 +136,11 @@ export function useAudioEngine() {
     if (!current) return;
     try {
       if (isPlaying) {
-        lastPlayIntentAtRef.current = Date.now();
+        // Re-arm the media notification if a previous pause cleared it.
+        if (!lockScreenActiveRef.current) {
+          player.setActiveForLockScreen?.(true, lockScreenMetadata(current));
+          lockScreenActiveRef.current = true;
+        }
         player.play();
         // Count a play the first time this loaded track starts.
         if (countedSongIdRef.current !== current.id) {
@@ -116,6 +149,12 @@ export function useAudioEngine() {
         }
       } else {
         player.pause();
+        // Clear the media notification on pause so it isn't stuck as an
+        // ongoing (non-dismissible) notification - the user can swipe it away.
+        if (lockScreenActiveRef.current) {
+          player.clearLockScreenControls?.();
+          lockScreenActiveRef.current = false;
+        }
       }
     } catch {
       // ignore
@@ -129,22 +168,19 @@ export function useAudioEngine() {
     }
   }, [status, setPosition]);
 
-  // 4c) Pause when headphones / Bluetooth audio disconnect. The OS pauses the
-  // native player on an output-route change (e.g. unplugging earphones); we
-  // detect that here and mirror it into the store so the UI + state stay in
-  // sync (and we don't blast audio out of the speaker). Heavily guarded so we
-  // never misread a track swap or the brief gap right after pressing play.
+  // 4c) Pause when headphones / Bluetooth audio disconnect. expo-audio's
+  // ExoPlayer is built without `handleAudioBecomingNoisy`, so it keeps playing
+  // out of the speaker on an output-route change. We listen for the OS
+  // "becoming noisy" broadcast (via the local expo-audio-route native module)
+  // and pause ourselves, which also tears down the media notification.
   useEffect(() => {
     if (!pauseOnDisconnect) return;
-    if (!status?.isLoaded) return;
-    if (!isPlaying) return; // we believe playback is active
-    if (status.playing) return; // but the native player isn't
-    if (status.isBuffering || status.didJustFinish) return; // not a stall / natural end
-    const now = Date.now();
-    if (now - lastReplaceAtRef.current < 1500) return; // track swap still settling
-    if (now - lastPlayIntentAtRef.current < 1500) return; // play() hasn't taken effect yet
-    setIsPlaying(false);
-  }, [status, pauseOnDisconnect, isPlaying, setIsPlaying]);
+    const remove = addAudioBecomingNoisyListener(() => {
+      const store = useMusicStore.getState();
+      if (store.isPlaying) store.setIsPlaying(false);
+    });
+    return remove;
+  }, [pauseOnDisconnect]);
 
   // 4b) Advance the queue when a track finishes. We use a direct playback event
   // listener (not the derived `status`) so this only runs on real "finished"
