@@ -20,6 +20,6 @@ export const NATIVE_AD_UNIT_ID = __DEV__
 export const ADS_ENABLED = true;
 
 /** How often the artwork box swaps over to show an ad. */
-export const AD_INTERVAL_MS = 60_000;
+export const AD_INTERVAL_MS = 90_000;
 /** How long the ad stays visible before flipping back to album art. */
-export const AD_VISIBLE_MS = 15_000;
+export const AD_VISIBLE_MS = 60_000;

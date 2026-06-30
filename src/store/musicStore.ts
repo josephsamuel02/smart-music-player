@@ -44,6 +44,8 @@ type MusicStoreState = {
   removeFromQueueAt: (index: number) => void;
   /** Reorder the queue (used by drag-handle). */
   reorderQueue: (from: number, to: number) => void;
+  /** Jump to a specific position in the queue and start playing it. */
+  playQueueIndex: (index: number) => void;
   clearQueue: () => void;
 
   setIsPlaying: (v: boolean) => void;
@@ -246,6 +248,13 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
 
     set({ queue: next, currentIndex: newIndex });
     void StorageService.set(StorageKeys.queue, { queue: next, index: newIndex });
+  },
+
+  playQueueIndex: (index) => {
+    const { queue } = get();
+    if (index < 0 || index >= queue.length) return;
+    set({ currentIndex: index, positionSeconds: 0, isPlaying: true });
+    void StorageService.set(StorageKeys.queue, { queue, index });
   },
 
   clearQueue: () => {

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import { Colors } from '@/constants/colors';
-import { FontSize, FontWeight, HitSlop, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, HitSlop, Radius, Spacing } from '@/constants/theme';
 import { useMusicStore } from '@/store/musicStore';
 import { useTheme } from '@/hooks/useTheme';
 import type { Song } from '@/types';
@@ -28,6 +29,7 @@ export function QueueList({ height }: Props) {
   const songsById = useMusicStore((s) => s.songsById);
   const reorderQueue = useMusicStore((s) => s.reorderQueue);
   const removeFromQueueAt = useMusicStore((s) => s.removeFromQueueAt);
+  const playQueueIndex = useMusicStore((s) => s.playQueueIndex);
 
   const items = queue
     .map((id, index) => ({ id, index, song: songsById[id] }))
@@ -36,22 +38,30 @@ export function QueueList({ height }: Props) {
   const renderItem = ({ item, drag, isActive }: RenderItemParams<(typeof items)[number]>) => {
     const playing = item.index === currentIndex;
     return (
-      <ScaleDecorator>
+      <ScaleDecorator activeScale={1.06}>
         <Pressable
+          onPress={() => playQueueIndex(item.index)}
           onLongPress={drag}
-          delayLongPress={200}
+          delayLongPress={180}
           style={[
             styles.row,
             playing && { backgroundColor: theme.accentSoft },
             isActive && styles.dragging,
           ]}
         >
-          <View style={styles.dragHandle}>
-            <Ionicons name="reorder-three" size={20} color={Colors.textFaint} />
-          </View>
-          <Artwork uri={item.song.artwork} seed={item.song.id} size={40} radius={8} />
+          {/* The handle also starts the drag, so users can grab it directly. */}
+          <Pressable onLongPress={drag} delayLongPress={180} hitSlop={HitSlop} style={styles.dragHandle}>
+            <Ionicons name="reorder-three" size={26} color={Colors.textFaint} />
+          </Pressable>
+          <Artwork uri={item.song.artwork} seed={item.song.id} size={56} radius={10} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={[styles.title, playing && { color: theme.accent }]}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.title,
+                playing && { color: theme.accent, fontWeight: FontWeight.bold },
+              ]}
+            >
               {item.song.title}
             </Text>
             <Text numberOfLines={1} style={styles.artist}>
@@ -64,7 +74,7 @@ export function QueueList({ height }: Props) {
             onPress={() => removeFromQueueAt(item.index)}
             style={styles.remove}
           >
-            <Ionicons name="close" size={18} color={Colors.textMuted} />
+            <Ionicons name="close" size={20} color={Colors.textMuted} />
           </Pressable>
         </Pressable>
       </ScaleDecorator>
@@ -72,7 +82,10 @@ export function QueueList({ height }: Props) {
   };
 
   return (
-    <View style={[styles.container, height ? { height } : null]}>
+    // The player is a native modal, which renders outside the root
+    // GestureHandlerRootView. Without a local root here the drag gesture never
+    // fires (press-and-hold does nothing), so we wrap the list in its own.
+    <GestureHandlerRootView style={[styles.container, height ? { height } : null]}>
       <DraggableFlatList
         data={items}
         keyExtractor={(it) => it.id}
@@ -84,7 +97,7 @@ export function QueueList({ height }: Props) {
         }
         contentContainerStyle={{ paddingBottom: Spacing.lg }}
       />
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -93,17 +106,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 8,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
   },
-  dragging: { backgroundColor: 'rgba(255,255,255,0.06)' },
-  dragHandle: { width: 22, alignItems: 'center' },
-  title: { color: Colors.text, fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  artist: { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 2 },
+  dragging: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  dragHandle: { width: 30, alignItems: 'center', justifyContent: 'center' },
+  title: { color: Colors.text, fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
+  artist: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 2 },
   duration: {
     color: Colors.textFaint,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     fontVariant: ['tabular-nums'],
     paddingHorizontal: 4,
   },
