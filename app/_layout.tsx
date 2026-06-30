@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useLibraryLoader } from '@/hooks/useLibraryLoader';
 import { useWidgetBridge } from '@/hooks/useWidgetBridge';
+import { initializeAds } from '@/services/ads';
 import { useLikedStore } from '@/store/likedStore';
 import { useLyricsStore } from '@/store/lyricsStore';
 import { useMusicStore } from '@/store/musicStore';
@@ -83,6 +84,11 @@ function AppBootstrap() {
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
   const hydrateLyrics = useLyricsStore((s) => s.hydrate);
   const hydrateStats = useStatsStore((s) => s.hydrate);
+
+  useEffect(() => {
+    // Kick off the ads SDK in the background; never blocks the app.
+    void initializeAds();
+  }, []);
 
   useEffect(() => {
     (async () => {

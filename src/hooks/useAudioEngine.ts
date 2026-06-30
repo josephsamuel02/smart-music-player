@@ -131,21 +131,26 @@ export function useAudioEngine() {
     }
   }, [current, isPlaying, player, onTrackFinished, setIsPlaying, recordPlay]);
 
-  // 3) Push play/pause toggles down to the player.
+  // 3) Push play/pause *toggles* down to the player. This intentionally does
+  // NOT depend on `current`: track changes are handled by the loader (effect 2)
+  // which starts playback itself, so reacting to `current` here too would fire
+  // a redundant second play()/recordPlay on every skip and make next/prev feel
+  // stiff. We read the current song live instead.
   useEffect(() => {
-    if (!current) return;
+    const cur = selectCurrentSong(useMusicStore.getState());
+    if (!cur) return;
     try {
       if (isPlaying) {
         // Re-arm the media notification if a previous pause cleared it.
         if (!lockScreenActiveRef.current) {
-          player.setActiveForLockScreen?.(true, lockScreenMetadata(current));
+          player.setActiveForLockScreen?.(true, lockScreenMetadata(cur));
           lockScreenActiveRef.current = true;
         }
         player.play();
         // Count a play the first time this loaded track starts.
-        if (countedSongIdRef.current !== current.id) {
-          countedSongIdRef.current = current.id;
-          recordPlay(current.id);
+        if (countedSongIdRef.current !== cur.id) {
+          countedSongIdRef.current = cur.id;
+          recordPlay(cur.id);
         }
       } else {
         player.pause();
@@ -159,7 +164,7 @@ export function useAudioEngine() {
     } catch {
       // ignore
     }
-  }, [isPlaying, current, player, recordPlay]);
+  }, [isPlaying, player, recordPlay]);
 
   // 4) Mirror the player position/duration into the store.
   useEffect(() => {
@@ -228,19 +233,30 @@ export function useAudioEngine() {
     return () => sub.remove();
   }, [player]);
 
-  // 5) Keep state honest if the OS pauses us in the background.
+  // 5) When returning to the foreground, resume ONLY if we were genuinely
+  // paused mid-track. We must never call play() on a track that finished while
+  // backgrounded - ExoPlayer is in an ENDED state and play() would restart it
+  // from 0 (the "song starts afresh on unlock" bug). We also skip it when the
+  // player is already playing. State is read live so the listener doesn't need
+  // to re-subscribe on every track change.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'active' && current && isPlaying) {
-        try {
+      if (next !== 'active') return;
+      const store = useMusicStore.getState();
+      if (!store.isPlaying || store.currentIndex < 0) return;
+      try {
+        const dur = player.duration ?? 0;
+        const pos = player.currentTime ?? 0;
+        const atEnd = dur > 0 && pos >= dur - 0.75;
+        if (player.isLoaded && !player.playing && !atEnd) {
           player.play();
-        } catch {
-          // ignore
         }
+      } catch {
+        // ignore
       }
     });
     return () => sub.remove();
-  }, [current, isPlaying, player]);
+  }, [player]);
 
   // 6) Expose seek globally for consumers like the full-screen player.
   useEffect(() => {

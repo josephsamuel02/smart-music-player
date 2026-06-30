@@ -9,7 +9,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { BackgroundGradient } from '@/components/BackgroundGradient';
 import { GlassCard } from '@/components/GlassCard';
 import { AnimatedHeart } from '@/components/AnimatedHeart';
-import { Artwork } from '@/components/Artwork';
+import { PlayerArtworkAd } from '@/components/PlayerArtworkAd';
 import { QueueList } from '@/components/QueueList';
 import { seekToSecondsGlobal } from '@/hooks/useAudioEngine';
 import { selectCurrentSong, useMusicStore } from '@/store/musicStore';
@@ -115,13 +115,12 @@ export default function PlayerScreen() {
         ) : (
           <View style={styles.flex}>
             <View style={styles.artworkWrap}>
-              <Animated.View entering={FadeIn.duration(220)}>
-                <Artwork
+              <Animated.View entering={FadeIn.duration(220)} style={styles.artShadow}>
+                <PlayerArtworkAd
                   uri={current.artwork}
                   seed={current.id}
                   size={artSize}
                   radius={Radius.xl}
-                  style={styles.artShadow}
                 />
               </Animated.View>
             </View>
