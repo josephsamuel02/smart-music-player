@@ -22,6 +22,7 @@ export const StorageKeys = {
   lyrics: '@smartmusic/lyrics/v1',
   playStats: '@smartmusic/playStats/v1',
   widgetSnapshot: '@smartmusic/widgetSnapshot/v1',
+  rewards: '@smartmusic/rewards/v1',
 } as const;
 
 export const DEFAULT_SETTINGS = {

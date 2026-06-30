@@ -14,6 +14,8 @@ import { StorageService } from '@/services/StorageService';
 
 type SettingsStoreState = AppSettings & {
   hydrated: boolean;
+  /** Epoch ms until which the app is ad-free (from the "remove ads" reward). 0 = ads on. */
+  adFreeUntil: number;
   hydrate: () => Promise<void>;
   updateGlass: (partial: Partial<GlassSettings>) => void;
   updatePlayback: (partial: Partial<PlaybackSettings>) => void;
@@ -23,8 +25,16 @@ type SettingsStoreState = AppSettings & {
   /** Copy a picked image into the document directory and remember its URI.
    *  Pass `null` to clear the current custom background. */
   setCustomBackground: (sourceUri: string | null) => Promise<void>;
+  /** Grant an ad-free window of `durationMs` (extends an existing one). */
+  grantAdFree: (durationMs: number) => void;
   reset: () => void;
 };
+
+type RewardsState = { adFreeUntil: number };
+
+function persistRewards(rewards: RewardsState) {
+  void StorageService.set(StorageKeys.rewards, rewards);
+}
 
 function persist(state: AppSettings) {
   void StorageService.set(StorageKeys.settings, {
@@ -83,8 +93,14 @@ async function deleteCustomBackground(uri: string | undefined): Promise<void> {
 export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
   ...DEFAULT_SETTINGS,
   hydrated: false,
+  adFreeUntil: 0,
 
   hydrate: async () => {
+    const rewards = await StorageService.get<RewardsState | null>(StorageKeys.rewards, null);
+    if (rewards && typeof rewards.adFreeUntil === 'number') {
+      set({ adFreeUntil: rewards.adFreeUntil });
+    }
+
     const stored = await StorageService.get<AppSettings | null>(StorageKeys.settings, null);
     if (stored) {
       const theme = sanitizeTheme({ ...DEFAULT_SETTINGS.theme, ...stored.theme });
@@ -160,8 +176,19 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     }
   },
 
+  grantAdFree: (durationMs) => {
+    // Extend from now or from an existing window, whichever is later, so
+    // watching again while already ad-free stacks another day.
+    const base = Math.max(Date.now(), get().adFreeUntil);
+    const adFreeUntil = base + durationMs;
+    set({ adFreeUntil });
+    persistRewards({ adFreeUntil });
+  },
+
   reset: () => {
     const previous = get().theme.customBackgroundUri;
+    // Keep the earned ad-free window - it's earned, not a preference, so a
+    // settings reset shouldn't revoke it.
     set({ ...DEFAULT_SETTINGS });
     persist(DEFAULT_SETTINGS as AppSettings);
     void deleteCustomBackground(previous);

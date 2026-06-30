@@ -12,6 +12,8 @@ import { GlassCard } from '@/components/GlassCard';
 import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, HitSlop, Radius, Spacing } from '@/constants/theme';
 import { useSettingsStore } from '@/store/settingsStore';
+import { REWARDED_BACKGROUND_UNIT_ID } from '@/constants/ads';
+import { useRewardedUnlock } from '@/hooks/useRewardedUnlock';
 import { THEMES, type ThemePreset } from '@/constants/themes';
 import {
   GRADIENT_BACKGROUNDS,
@@ -30,6 +32,15 @@ export default function ThemesScreen() {
   const activeTheme = useTheme();
 
   const [picking, setPicking] = useState(false);
+
+  // Each background change requires watching a rewarded ad; on reward we open
+  // the picker so the user can choose/replace their photo.
+  const { isLoaded: bgAdReady, present: presentBgAd } = useRewardedUnlock(
+    REWARDED_BACKGROUND_UNIT_ID,
+    () => {
+      void handlePickImage();
+    },
+  );
 
   const handleSelectBackground = async (id: string) => {
     // Selecting a preset replaces any custom photo so the preset is visible.
@@ -71,6 +82,11 @@ export default function ThemesScreen() {
     ]);
   };
 
+  // Watch a rewarded ad for every photo change; the picker opens on reward.
+  const handleChoosePhoto = () => {
+    presentBgAd();
+  };
+
   return (
     <BackgroundGradient>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right', 'bottom']}>
@@ -85,9 +101,6 @@ export default function ThemesScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Section 1: theme colours (accent palette) */}
           <Text style={styles.sectionTitle}>Theme Colours</Text>
-          <Text style={styles.sectionCaption}>
-            Pick an accent palette. It tints buttons, sliders and highlights across every screen.
-          </Text>
 
           <View style={styles.swatchGrid}>
             {THEMES.map((theme) => (
@@ -102,9 +115,6 @@ export default function ThemesScreen() {
 
           {/* Section 2: background images */}
           <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Background Images</Text>
-          <Text style={styles.sectionCaption}>
-            Pick a photo to use as the app backdrop.
-          </Text>
 
           <View style={styles.bgGrid}>
             {IMAGE_BACKGROUNDS.map((bg) => (
@@ -118,31 +128,14 @@ export default function ThemesScreen() {
             ))}
           </View>
 
-          {/* Section 3: background colours (mood gradients) */}
-          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Background Colours</Text>
-          <Text style={styles.sectionCaption}>
-            Or use a transitioned-colour mood instead of a photo.
-          </Text>
+          {/* Section 3: custom photo background (rewarded-ad gated) */}
+          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Use your own photo</Text>
 
-          <View style={styles.bgGrid}>
-            {GRADIENT_BACKGROUNDS.map((bg) => (
-              <BackgroundThumb
-                key={bg.id}
-                background={bg}
-                active={!customBgUri && bg.id === backgroundId}
-                accent={activeTheme.accent}
-                onPress={() => void handleSelectBackground(bg.id)}
-              />
-            ))}
-          </View>
-
-          {/* Section 4: custom photo background */}
-          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Your photo</Text>
-          <Text style={styles.sectionCaption}>
-            Use one of your own photos as the app backdrop. Adjust the dim level so the UI stays
-            readable.
-          </Text>
-
+          <Pressable
+            onPress={handleChoosePhoto}
+            disabled={picking || !bgAdReady}
+            style={({ pressed }) => (pressed ? { opacity: 0.92 } : null)}
+          >
           <GlassCard
             style={[
               styles.customCard,
@@ -197,26 +190,20 @@ export default function ThemesScreen() {
 
               <View style={styles.customActions}>
                 <Pressable
-                  disabled={picking}
-                  onPress={handlePickImage}
+                  disabled={picking || !bgAdReady}
+                  onPress={handleChoosePhoto}
                   style={({ pressed }) => [
                     styles.customBtn,
                     { backgroundColor: activeTheme.accent },
-                    (pressed || picking) && { opacity: 0.85 },
+                    (pressed || picking || !bgAdReady) && { opacity: 0.6 },
                   ]}
                 >
                   {picking ? (
                     <ActivityIndicator size="small" color="#0A0A0F" />
                   ) : (
                     <>
-                      <Ionicons
-                        name={customBgUri ? 'swap-horizontal' : 'image-outline'}
-                        size={16}
-                        color="#0A0A0F"
-                      />
-                      <Text style={styles.customBtnText}>
-                        {customBgUri ? 'Replace photo' : 'Choose photo'}
-                      </Text>
+                      <Ionicons name="play" size={16} color="#0A0A0F" />
+                      <Text style={styles.customBtnText}>Select image</Text>
                     </>
                   )}
                 </Pressable>
@@ -236,6 +223,22 @@ export default function ThemesScreen() {
               </View>
             </View>
           </GlassCard>
+          </Pressable>
+
+          {/* Section 4: background colours (mood gradients) */}
+          <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>Background Colours</Text>
+
+          <View style={styles.bgGrid}>
+            {GRADIENT_BACKGROUNDS.map((bg) => (
+              <BackgroundThumb
+                key={bg.id}
+                background={bg}
+                active={!customBgUri && bg.id === backgroundId}
+                accent={activeTheme.accent}
+                onPress={() => void handleSelectBackground(bg.id)}
+              />
+            ))}
+          </View>
         </ScrollView>
       </SafeAreaView>
     </BackgroundGradient>
@@ -349,38 +352,37 @@ const styles = StyleSheet.create({
   },
 
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 60 },
-  sectionTitle: { color: Colors.text, fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
-  sectionCaption: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    marginTop: 4,
+  sectionTitle: {
+    color: Colors.text,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.semibold,
     marginBottom: Spacing.md,
   },
 
-  // Theme colour swatches (compact).
-  swatchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  swatchWrap: { width: 64, alignItems: 'center' },
+  // Theme colour swatches (compact, all on one row).
+  swatchGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  swatchWrap: { flex: 1, alignItems: 'center', paddingHorizontal: 2 },
   swatchCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   swatchCheck: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   swatchName: {
     color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    marginTop: 6,
+    fontSize: 10,
+    marginTop: 5,
     textAlign: 'center',
   },
 

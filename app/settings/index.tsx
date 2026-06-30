@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,9 @@ import { BackgroundGradient } from '@/components/BackgroundGradient';
 import { GlassCard } from '@/components/GlassCard';
 import { Colors } from '@/constants/colors';
 import { FontSize, FontWeight, HitSlop, Radius, Spacing } from '@/constants/theme';
+import { AD_FREE_DURATION_MS, REWARDED_REMOVE_ADS_UNIT_ID } from '@/constants/ads';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useRewardedUnlock } from '@/hooks/useRewardedUnlock';
 import { getTheme } from '@/constants/themes';
 
 type MenuItem = {
@@ -56,7 +58,27 @@ const MENU: readonly MenuItem[] = [
 export default function SettingsMenuScreen() {
   const reset = useSettingsStore((s) => s.reset);
   const themeId = useSettingsStore((s) => s.theme.themeId);
+  const adFreeUntil = useSettingsStore((s) => s.adFreeUntil);
+  const grantAdFree = useSettingsStore((s) => s.grantAdFree);
   const activeTheme = getTheme(themeId);
+
+  // Each completed rewarded view is an independent reward: it stacks another
+  // 24h onto any remaining ad-free time, so the user can watch back-to-back to
+  // bank multiple days. We confirm the new total after every grant.
+  const { isLoaded: removeAdsReady, present: presentRemoveAdsAd } = useRewardedUnlock(
+    REWARDED_REMOVE_ADS_UNIT_ID,
+    () => {
+      grantAdFree(AD_FREE_DURATION_MS);
+      const until = useSettingsStore.getState().adFreeUntil;
+      const hours = Math.max(1, Math.round((until - Date.now()) / (60 * 60 * 1000)));
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`Ads off for about ${hours} hours`, ToastAndroid.SHORT);
+      }
+    },
+  );
+
+  const adFree = adFreeUntil > Date.now();
+  const adFreeHoursLeft = adFree ? Math.ceil((adFreeUntil - Date.now()) / (60 * 60 * 1000)) : 0;
 
   return (
     <BackgroundGradient>
@@ -102,6 +124,40 @@ export default function SettingsMenuScreen() {
                 <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
               </Pressable>
             ))}
+          </GlassCard>
+
+          <GlassCard style={styles.adFreeCard}>
+            <View style={[styles.menuIconWrap, { backgroundColor: activeTheme.accentSoft }]}>
+              <Ionicons
+                name={adFree ? 'shield-checkmark' : 'play-circle-outline'}
+                size={20}
+                color={activeTheme.accent}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>Remove ads for a day</Text>
+              <Text style={styles.menuSubtitle}>
+                {adFree
+                  ? `No ads for about ${adFreeHoursLeft} more hour${
+                      adFreeHoursLeft === 1 ? '' : 's'
+                    }. Watch again to add another day.`
+                  : 'Watch a short video and go ad-free for 24 hours.'}
+              </Text>
+            </View>
+            <Pressable
+              disabled={!removeAdsReady}
+              onPress={presentRemoveAdsAd}
+              style={({ pressed }) => [
+                styles.adFreeBtn,
+                { backgroundColor: activeTheme.accent },
+                (pressed || !removeAdsReady) && { opacity: 0.5 },
+              ]}
+            >
+              <Ionicons name="play" size={14} color="#0A0A0F" />
+              <Text style={styles.adFreeBtnText}>
+                {removeAdsReady ? (adFree ? 'Add day' : 'Watch') : '…'}
+              </Text>
+            </Pressable>
           </GlassCard>
 
           <Text style={styles.footer}>Smart Music Player · Offline-first · Local only</Text>
@@ -178,6 +234,28 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: FontSize.xs,
     marginTop: 2,
+  },
+
+  adFreeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    marginTop: Spacing.md,
+  },
+  adFreeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: Radius.pill,
+  },
+  adFreeBtnText: {
+    color: '#0A0A0F',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
   },
 
   footer: {

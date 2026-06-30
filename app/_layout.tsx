@@ -1,19 +1,20 @@
-import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Stack } from 'expo-router';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useAudioEngine } from '@/hooks/useAudioEngine';
-import { useLibraryLoader } from '@/hooks/useLibraryLoader';
-import { useWidgetBridge } from '@/hooks/useWidgetBridge';
-import { initializeAds } from '@/services/ads';
-import { useLikedStore } from '@/store/likedStore';
-import { useLyricsStore } from '@/store/lyricsStore';
-import { useMusicStore } from '@/store/musicStore';
-import { usePlaylistStore } from '@/store/playlistStore';
-import { useSettingsStore } from '@/store/settingsStore';
-import { useStatsStore } from '@/store/statsStore';
+import "react-native-gesture-handler";
+import React, { useEffect } from "react";
+import { StatusBar } from "expo-status-bar";
+import { Stack } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useAppOpenAd } from "@/hooks/useAppOpenAd";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { useLibraryLoader } from "@/hooks/useLibraryLoader";
+import { useWidgetBridge } from "@/hooks/useWidgetBridge";
+import { initializeAds } from "@/services/ads";
+import { useLikedStore } from "@/store/likedStore";
+import { useLyricsStore } from "@/store/lyricsStore";
+import { useMusicStore } from "@/store/musicStore";
+import { usePlaylistStore } from "@/store/playlistStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useStatsStore } from "@/store/statsStore";
 
 /**
  * Root layout. Owns:
@@ -31,8 +32,8 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: 'transparent' },
-            animation: 'fade',
+            contentStyle: { backgroundColor: "transparent" },
+            animation: "fade",
           }}
         >
           <Stack.Screen name="index" />
@@ -40,34 +41,34 @@ export default function RootLayout() {
           <Stack.Screen
             name="player"
             options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
+              presentation: "modal",
+              animation: "slide_from_bottom",
               gestureEnabled: true,
             }}
           />
           <Stack.Screen
             name="search"
             options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
+              presentation: "modal",
+              animation: "slide_from_bottom",
               gestureEnabled: true,
             }}
           />
           <Stack.Screen
             name="lyrics"
             options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
+              presentation: "modal",
+              animation: "slide_from_bottom",
               gestureEnabled: true,
             }}
           />
-          <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="smart/[type]" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="artists" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="artist/[name]" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="widget" options={{ animation: 'none' }} />
+          <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="folder/[id]" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="playlist/[id]" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="smart/[type]" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="artists" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="artist/[name]" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="widget" options={{ animation: "none" }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -78,6 +79,7 @@ function AppBootstrap() {
   useAudioEngine();
   useLibraryLoader();
   useWidgetBridge();
+  useAppOpenAd();
 
   const hydrateLiked = useLikedStore((s) => s.hydrate);
   const hydratePlaylists = usePlaylistStore((s) => s.hydrate);

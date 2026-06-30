@@ -1,7 +1,18 @@
-import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
-import { ADS_ENABLED } from '@/constants/ads';
+import mobileAds, { MaxAdContentRating } from "react-native-google-mobile-ads";
+import { ADS_ENABLED } from "@/constants/ads";
+import { useSettingsStore } from "@/store/settingsStore";
 
 let initStarted = false;
+
+/**
+ * Whether ads should currently be shown. False when the master switch is off or
+ * the user is inside a "remove ads" reward window. Read this (not the raw
+ * `ADS_ENABLED` constant) before showing any ad.
+ */
+export function adsCurrentlyEnabled(): boolean {
+  if (!ADS_ENABLED) return false;
+  return Date.now() >= useSettingsStore.getState().adFreeUntil;
+}
 
 /**
  * Initialize the Google Mobile Ads SDK once at app start. Safe to call more

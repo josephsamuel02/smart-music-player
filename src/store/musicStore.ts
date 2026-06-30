@@ -24,8 +24,6 @@ type MusicStoreState = {
   durationSeconds: number;
 
   setSongs: (songs: Song[]) => void;
-  /** Attach a resolved (embedded/extracted) artwork URI to a single song. */
-  setSongArtwork: (songId: string, artwork: string) => void;
   /** Merge embedded-tag metadata (title/artist/album/artwork) into a song and
    *  mark it as read so we don't re-parse it. */
   applySongMetadata: (
@@ -147,17 +145,6 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
       folders: buildFolderGroups(sorted),
     });
     void StorageService.set(StorageKeys.songsCache, sorted);
-  },
-
-  setSongArtwork: (songId, artwork) => {
-    const { songsById, songs } = get();
-    const existing = songsById[songId];
-    if (!existing || existing.artwork === artwork) return;
-    const updated = { ...existing, artwork };
-    const nextById = { ...songsById, [songId]: updated };
-    const nextSongs = songs.map((s) => (s.id === songId ? updated : s));
-    set({ songsById: nextById, songs: nextSongs });
-    persistSongsCacheDebounced(nextSongs);
   },
 
   applySongMetadata: (songId, meta) => {
