@@ -16,6 +16,8 @@ type SettingsStoreState = AppSettings & {
   hydrated: boolean;
   /** Epoch ms until which the app is ad-free (from the "remove ads" reward). 0 = ads on. */
   adFreeUntil: number;
+  /** True after the user watched the custom-background ad until they pick a new photo. */
+  customBackgroundAdUnlocked: boolean;
   hydrate: () => Promise<void>;
   updateGlass: (partial: Partial<GlassSettings>) => void;
   updatePlayback: (partial: Partial<PlaybackSettings>) => void;
@@ -25,16 +27,17 @@ type SettingsStoreState = AppSettings & {
   /** Copy a picked image into the document directory and remember its URI.
    *  Pass `null` to clear the current custom background. */
   setCustomBackground: (sourceUri: string | null) => Promise<void>;
-  /** Grant an ad-free window of `durationMs` (extends an existing one). */
+  /** Grant an ad-free window of `durationMs` (only when not already ad-free). */
   grantAdFree: (durationMs: number) => void;
+  /** Remember that the custom-background rewarded ad was watched. */
+  grantCustomBackgroundAdUnlock: () => void;
   reset: () => void;
 };
 
-type RewardsState = { adFreeUntil: number };
-
-function persistRewards(rewards: RewardsState) {
-  void StorageService.set(StorageKeys.rewards, rewards);
-}
+type RewardsState = {
+  adFreeUntil: number;
+  customBackgroundAdUnlocked?: boolean;
+};
 
 function persist(state: AppSettings) {
   void StorageService.set(StorageKeys.settings, {
@@ -90,15 +93,25 @@ async function deleteCustomBackground(uri: string | undefined): Promise<void> {
   await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
 }
 
-export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
+export const useSettingsStore = create<SettingsStoreState>((set, get) => {
+  const persistRewards = () => {
+    const { adFreeUntil, customBackgroundAdUnlocked } = get();
+    void StorageService.set(StorageKeys.rewards, { adFreeUntil, customBackgroundAdUnlocked });
+  };
+
+  return {
   ...DEFAULT_SETTINGS,
   hydrated: false,
   adFreeUntil: 0,
+  customBackgroundAdUnlocked: false,
 
   hydrate: async () => {
     const rewards = await StorageService.get<RewardsState | null>(StorageKeys.rewards, null);
-    if (rewards && typeof rewards.adFreeUntil === 'number') {
-      set({ adFreeUntil: rewards.adFreeUntil });
+    if (rewards) {
+      set({
+        adFreeUntil: typeof rewards.adFreeUntil === 'number' ? rewards.adFreeUntil : 0,
+        customBackgroundAdUnlocked: !!rewards.customBackgroundAdUnlocked,
+      });
     }
 
     const stored = await StorageService.get<AppSettings | null>(StorageKeys.settings, null);
@@ -168,8 +181,10 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
 
     const persistedUri = await copyCustomBackground(sourceUri);
     const theme = sanitizeTheme({ ...get().theme, customBackgroundUri: persistedUri });
-    set({ theme });
+    // A new photo was chosen — require another rewarded ad before the next change.
+    set({ theme, customBackgroundAdUnlocked: false });
     persist({ ...get(), theme });
+    persistRewards();
     // Clean up the prior custom background only after the new one is saved.
     if (previous && previous !== persistedUri) {
       await deleteCustomBackground(previous);
@@ -177,12 +192,15 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
   },
 
   grantAdFree: (durationMs) => {
-    // Extend from now or from an existing window, whichever is later, so
-    // watching again while already ad-free stacks another day.
-    const base = Math.max(Date.now(), get().adFreeUntil);
-    const adFreeUntil = base + durationMs;
-    set({ adFreeUntil });
-    persistRewards({ adFreeUntil });
+    const now = Date.now();
+    if (get().adFreeUntil > now) return;
+    set({ adFreeUntil: now + durationMs });
+    persistRewards();
+  },
+
+  grantCustomBackgroundAdUnlock: () => {
+    set({ customBackgroundAdUnlocked: true });
+    persistRewards();
   },
 
   reset: () => {
@@ -193,4 +211,5 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     persist(DEFAULT_SETTINGS as AppSettings);
     void deleteCustomBackground(previous);
   },
-}));
+};
+});

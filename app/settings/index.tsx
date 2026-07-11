@@ -1,16 +1,25 @@
-import React from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { BackgroundGradient } from '@/components/BackgroundGradient';
-import { GlassCard } from '@/components/GlassCard';
-import { Colors } from '@/constants/colors';
-import { FontSize, FontWeight, HitSlop, Radius, Spacing } from '@/constants/theme';
-import { AD_FREE_DURATION_MS, REWARDED_REMOVE_ADS_UNIT_ID } from '@/constants/ads';
-import { useSettingsStore } from '@/store/settingsStore';
-import { useRewardedUnlock } from '@/hooks/useRewardedUnlock';
-import { getTheme } from '@/constants/themes';
+import React from "react";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  ToastAndroid,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { BackgroundGradient } from "@/components/BackgroundGradient";
+import { GlassCard } from "@/components/GlassCard";
+import { Colors } from "@/constants/colors";
+import { FontSize, FontWeight, HitSlop, Radius, Spacing } from "@/constants/theme";
+import { AD_FREE_DURATION_MS, REWARDED_REMOVE_ADS_UNIT_ID } from "@/constants/ads";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useRewardedUnlock } from "@/hooks/useRewardedUnlock";
+import { getTheme } from "@/constants/themes";
 
 type MenuItem = {
   id: string;
@@ -18,40 +27,40 @@ type MenuItem = {
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
   href:
-    | '/settings/glassmorphism'
-    | '/settings/themes'
-    | '/settings/playback'
-    | '/settings/equalizer';
+    | "/settings/glassmorphism"
+    | "/settings/themes"
+    | "/settings/playback"
+    | "/settings/equalizer";
 };
 
 const MENU: readonly MenuItem[] = [
   {
-    id: 'glass',
-    title: 'Glassmorphism',
-    subtitle: 'Transparency, blur intensity, background opacity.',
-    icon: 'cube-outline',
-    href: '/settings/glassmorphism',
+    id: "glass",
+    title: "Glassmorphism",
+    subtitle: "Transparency, blur intensity, background opacity.",
+    icon: "cube-outline",
+    href: "/settings/glassmorphism",
   },
   {
-    id: 'themes',
-    title: 'Themes',
-    subtitle: 'Switch the colour palette and gradient.',
-    icon: 'color-palette-outline',
-    href: '/settings/themes',
+    id: "themes",
+    title: "Themes",
+    subtitle: "Switch the colour palette and gradient.",
+    icon: "color-palette-outline",
+    href: "/settings/themes",
   },
   {
-    id: 'play',
-    title: 'Play settings',
-    subtitle: 'Crossfade, resume on launch, pause on unplug, library scan.',
-    icon: 'play-circle-outline',
-    href: '/settings/playback',
+    id: "play",
+    title: "Play settings",
+    subtitle: "Crossfade, resume on launch, pause on unplug, library scan.",
+    icon: "play-circle-outline",
+    href: "/settings/playback",
   },
   {
-    id: 'equalizer',
-    title: 'Equalizer',
-    subtitle: 'Presets and per-band tuning for your sound.',
-    icon: 'options-outline',
-    href: '/settings/equalizer',
+    id: "equalizer",
+    title: "Equalizer",
+    subtitle: "Presets and per-band tuning for your sound.",
+    icon: "options-outline",
+    href: "/settings/equalizer",
   },
 ] as const;
 
@@ -62,27 +71,30 @@ export default function SettingsMenuScreen() {
   const grantAdFree = useSettingsStore((s) => s.grantAdFree);
   const activeTheme = getTheme(themeId);
 
-  // Each completed rewarded view is an independent reward: it stacks another
-  // 24h onto any remaining ad-free time, so the user can watch back-to-back to
-  // bank multiple days. We confirm the new total after every grant.
+  // One rewarded view grants 24h ad-free; extra views during that window do not stack.
   const { isLoaded: removeAdsReady, present: presentRemoveAdsAd } = useRewardedUnlock(
     REWARDED_REMOVE_ADS_UNIT_ID,
     () => {
+      const wasAdFree = useSettingsStore.getState().adFreeUntil > Date.now();
       grantAdFree(AD_FREE_DURATION_MS);
       const until = useSettingsStore.getState().adFreeUntil;
+      if (until <= Date.now()) return;
       const hours = Math.max(1, Math.round((until - Date.now()) / (60 * 60 * 1000)));
-      if (Platform.OS === 'android') {
+      if (wasAdFree) return;
+      if (Platform.OS === "android") {
         ToastAndroid.show(`Ads off for about ${hours} hours`, ToastAndroid.SHORT);
       }
     },
   );
 
   const adFree = adFreeUntil > Date.now();
-  const adFreeHoursLeft = adFree ? Math.ceil((adFreeUntil - Date.now()) / (60 * 60 * 1000)) : 0;
+  const adFreeHoursLeft = adFree
+    ? Math.ceil((adFreeUntil - Date.now()) / (60 * 60 * 1000))
+    : 0;
 
   return (
     <BackgroundGradient>
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right", "bottom"]}>
         <View style={styles.headerRow}>
           <Pressable hitSlop={HitSlop} onPress={() => router.back()} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
@@ -91,9 +103,9 @@ export default function SettingsMenuScreen() {
           <Pressable
             hitSlop={HitSlop}
             onPress={() =>
-              Alert.alert('Reset settings', 'Restore all settings to their defaults?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Reset', style: 'destructive', onPress: reset },
+              Alert.alert("Reset settings", "Restore all settings to their defaults?", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Reset", style: "destructive", onPress: reset },
               ])
             }
             style={styles.resetBtn}
@@ -114,7 +126,9 @@ export default function SettingsMenuScreen() {
                   pressed && { opacity: 0.85 },
                 ]}
               >
-                <View style={[styles.menuIconWrap, { backgroundColor: activeTheme.accentSoft }]}>
+                <View
+                  style={[styles.menuIconWrap, { backgroundColor: activeTheme.accentSoft }]}
+                >
                   <Ionicons name={item.icon} size={20} color={activeTheme.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -129,7 +143,7 @@ export default function SettingsMenuScreen() {
           <GlassCard style={styles.adFreeCard}>
             <View style={[styles.menuIconWrap, { backgroundColor: activeTheme.accentSoft }]}>
               <Ionicons
-                name={adFree ? 'shield-checkmark' : 'play-circle-outline'}
+                name={adFree ? "shield-checkmark" : "play-circle-outline"}
                 size={20}
                 color={activeTheme.accent}
               />
@@ -139,9 +153,9 @@ export default function SettingsMenuScreen() {
               <Text style={styles.menuSubtitle}>
                 {adFree
                   ? `No ads for about ${adFreeHoursLeft} more hour${
-                      adFreeHoursLeft === 1 ? '' : 's'
-                    }. Watch again to add another day.`
-                  : 'Watch a short video and go ad-free for 24 hours.'}
+                      adFreeHoursLeft === 1 ? "" : "s"
+                    }. You can watch again, but extra views won't add more time.`
+                  : ""}
               </Text>
             </View>
             <Pressable
@@ -154,9 +168,7 @@ export default function SettingsMenuScreen() {
               ]}
             >
               <Ionicons name="play" size={14} color="#0A0A0F" />
-              <Text style={styles.adFreeBtnText}>
-                {removeAdsReady ? (adFree ? 'Add day' : 'Watch') : '…'}
-              </Text>
+              <Text style={styles.adFreeBtnText}>{removeAdsReady ? "Watch" : "…"}</Text>
             </Pressable>
           </GlassCard>
 
@@ -169,8 +181,8 @@ export default function SettingsMenuScreen() {
 
 const styles = StyleSheet.create({
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
@@ -179,9 +191,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     flex: 1,
@@ -193,7 +205,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   resetBtnText: {
     color: Colors.textMuted,
@@ -206,24 +218,24 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: 60,
   },
-  menuCard: { padding: 0, overflow: 'hidden' },
+  menuCard: { padding: 0, overflow: "hidden" },
   menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: 14,
   },
   menuRowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: "rgba(255,255,255,0.08)",
   },
   menuIconWrap: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   menuTitle: {
     color: Colors.text,
@@ -237,30 +249,30 @@ const styles = StyleSheet.create({
   },
 
   adFreeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: 14,
     marginTop: Spacing.md,
   },
   adFreeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: Radius.pill,
   },
   adFreeBtnText: {
-    color: '#0A0A0F',
+    color: "#0A0A0F",
     fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
   },
 
   footer: {
     color: Colors.textFaint,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: Spacing.xl,
     fontSize: FontSize.xs,
   },

@@ -29,15 +29,18 @@ export default function ThemesScreen() {
   const customBgDim = useSettingsStore((s) => s.theme.customBackgroundDim);
   const updateTheme = useSettingsStore((s) => s.updateTheme);
   const setCustomBackground = useSettingsStore((s) => s.setCustomBackground);
+  const customBackgroundAdUnlocked = useSettingsStore((s) => s.customBackgroundAdUnlocked);
+  const grantCustomBackgroundAdUnlock = useSettingsStore((s) => s.grantCustomBackgroundAdUnlock);
   const activeTheme = useTheme();
 
   const [picking, setPicking] = useState(false);
 
-  // Each background change requires watching a rewarded ad; on reward we open
-  // the picker so the user can choose/replace their photo.
+  // Watching the rewarded ad unlocks the picker until the user actually picks a
+  // new photo; cancelling and retrying does not require another ad.
   const { isLoaded: bgAdReady, present: presentBgAd } = useRewardedUnlock(
     REWARDED_BACKGROUND_UNIT_ID,
     () => {
+      grantCustomBackgroundAdUnlock();
       void handlePickImage();
     },
   );
@@ -82,8 +85,14 @@ export default function ThemesScreen() {
     ]);
   };
 
-  // Watch a rewarded ad for every photo change; the picker opens on reward.
+  const bgPickerReady = bgAdReady || customBackgroundAdUnlocked;
+
+  // Open the picker directly when already unlocked; otherwise watch a rewarded ad.
   const handleChoosePhoto = () => {
+    if (customBackgroundAdUnlocked) {
+      void handlePickImage();
+      return;
+    }
     presentBgAd();
   };
 
@@ -133,7 +142,7 @@ export default function ThemesScreen() {
 
           <Pressable
             onPress={handleChoosePhoto}
-            disabled={picking || !bgAdReady}
+            disabled={picking || !bgPickerReady}
             style={({ pressed }) => (pressed ? { opacity: 0.92 } : null)}
           >
           <GlassCard
@@ -190,12 +199,12 @@ export default function ThemesScreen() {
 
               <View style={styles.customActions}>
                 <Pressable
-                  disabled={picking || !bgAdReady}
+                  disabled={picking || !bgPickerReady}
                   onPress={handleChoosePhoto}
                   style={({ pressed }) => [
                     styles.customBtn,
                     { backgroundColor: activeTheme.accent },
-                    (pressed || picking || !bgAdReady) && { opacity: 0.6 },
+                    (pressed || picking || !bgPickerReady) && { opacity: 0.6 },
                   ]}
                 >
                   {picking ? (
