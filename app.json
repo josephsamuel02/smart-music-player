@@ -29,6 +29,7 @@
         "backgroundColor": "#120A2E"
       },
       "permissions": [
+        "com.google.android.gms.permission.AD_ID",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_MEDIA_IMAGES",
