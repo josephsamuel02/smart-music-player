@@ -203,12 +203,12 @@ export default function SettingsMenuScreen() {
               </Text>
             </View>
             <Pressable
-              disabled={removeAdsLoading || !removeAdsReady}
+              disabled={removeAdsLoading}
               onPress={presentRemoveAdsAd}
               style={({ pressed }) => [
                 styles.adFreeBtn,
                 { backgroundColor: activeTheme.accent },
-                (pressed || removeAdsLoading || !removeAdsReady) && { opacity: 0.5 },
+                (pressed || removeAdsLoading) && { opacity: 0.5 },
               ]}
             >
               {removeAdsLoading ? (
@@ -216,7 +216,7 @@ export default function SettingsMenuScreen() {
               ) : (
                 <>
                   <Ionicons name="play" size={14} color="#0A0A0F" />
-                  <Text style={styles.adFreeBtnText}>{removeAdsReady ? "Watch" : "Load"}</Text>
+                  <Text style={styles.adFreeBtnText}>Watch</Text>
                 </>
               )}
             </Pressable>

@@ -199,12 +199,12 @@ export default function ThemesScreen() {
 
               <View style={styles.customActions}>
                 <Pressable
-                  disabled={picking || bgAdLoading || !bgPickerReady}
+                  disabled={picking || bgAdLoading}
                   onPress={handleChoosePhoto}
                   style={({ pressed }) => [
                     styles.customBtn,
                     { backgroundColor: activeTheme.accent },
-                    (pressed || picking || bgAdLoading || !bgPickerReady) && { opacity: 0.6 },
+                    (pressed || picking || bgAdLoading) && { opacity: 0.6 },
                   ]}
                 >
                   {picking || bgAdLoading ? (
