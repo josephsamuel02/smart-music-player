@@ -28,7 +28,8 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AdConsentProvider>
+        {/* Temporarily disabled AdConsentProvider for Expo Go testing */}
+        {/* <AdConsentProvider> */}
           <AppBootstrap />
           <StatusBar style="light" />
           <Stack
@@ -72,7 +73,7 @@ export default function RootLayout() {
             <Stack.Screen name="artist/[name]" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="widget" options={{ animation: "none" }} />
           </Stack>
-        </AdConsentProvider>
+        {/* </AdConsentProvider> */}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
