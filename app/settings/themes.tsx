@@ -37,7 +37,7 @@ export default function ThemesScreen() {
 
   // Watching the rewarded ad unlocks the picker until the user actually picks a
   // new photo; cancelling and retrying does not require another ad.
-  const { isLoaded: bgAdReady, present: presentBgAd } = useRewardedUnlock(
+  const { isLoaded: bgAdReady, isLoading: bgAdLoading, present: presentBgAd } = useRewardedUnlock(
     REWARDED_BACKGROUND_UNIT_ID,
     () => {
       grantCustomBackgroundAdUnlock();
@@ -199,15 +199,15 @@ export default function ThemesScreen() {
 
               <View style={styles.customActions}>
                 <Pressable
-                  disabled={picking || !bgPickerReady}
+                  disabled={picking || bgAdLoading || !bgPickerReady}
                   onPress={handleChoosePhoto}
                   style={({ pressed }) => [
                     styles.customBtn,
                     { backgroundColor: activeTheme.accent },
-                    (pressed || picking || !bgPickerReady) && { opacity: 0.6 },
+                    (pressed || picking || bgAdLoading || !bgPickerReady) && { opacity: 0.6 },
                   ]}
                 >
-                  {picking ? (
+                  {picking || bgAdLoading ? (
                     <ActivityIndicator size="small" color="#0A0A0F" />
                   ) : (
                     <>

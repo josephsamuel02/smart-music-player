@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AdConsentProvider } from "@/components/AdConsentProvider";
 import { useAppOpenAd } from "@/hooks/useAppOpenAd";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useLibraryLoader } from "@/hooks/useLibraryLoader";
@@ -18,7 +19,7 @@ import { useStatsStore } from "@/store/statsStore";
 
 /**
  * Root layout. Owns:
- *   - global providers (SafeArea, GestureHandler)
+ *   - global providers (SafeArea, GestureHandler, AdConsent)
  *   - the single audio engine instance (useAudioEngine)
  *   - app-wide async hydration (settings, liked songs, playlists)
  *   - the auto-scan triggered by useLibraryLoader
@@ -27,49 +28,51 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppBootstrap />
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: "transparent" },
-            animation: "fade",
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="player"
-            options={{
-              presentation: "modal",
-              animation: "slide_from_bottom",
-              gestureEnabled: true,
+        <AdConsentProvider>
+          <AppBootstrap />
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: "transparent" },
+              animation: "fade",
             }}
-          />
-          <Stack.Screen
-            name="search"
-            options={{
-              presentation: "modal",
-              animation: "slide_from_bottom",
-              gestureEnabled: true,
-            }}
-          />
-          <Stack.Screen
-            name="lyrics"
-            options={{
-              presentation: "modal",
-              animation: "slide_from_bottom",
-              gestureEnabled: true,
-            }}
-          />
-          <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="folder/[id]" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="playlist/[id]" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="smart/[type]" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="artists" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="artist/[name]" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="widget" options={{ animation: "none" }} />
-        </Stack>
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="player"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="search"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="lyrics"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureEnabled: true,
+              }}
+            />
+            <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="folder/[id]" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="playlist/[id]" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="smart/[type]" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="artists" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="artist/[name]" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="widget" options={{ animation: "none" }} />
+          </Stack>
+        </AdConsentProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

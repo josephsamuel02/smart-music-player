@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -12,8 +13,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AdsConsent } from "react-native-google-mobile-ads";
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { GlassCard } from "@/components/GlassCard";
+import { showPrivacyOptionsForm } from "@/components/AdConsentProvider";
 import { Colors } from "@/constants/colors";
 import { FontSize, FontWeight, HitSlop, Radius, Spacing } from "@/constants/theme";
 import { AD_FREE_DURATION_MS, REWARDED_REMOVE_ADS_UNIT_ID } from "@/constants/ads";
@@ -26,11 +29,12 @@ type MenuItem = {
   title: string;
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
-  href:
+  href?:
     | "/settings/glassmorphism"
     | "/settings/themes"
     | "/settings/playback"
     | "/settings/equalizer";
+  action?: () => void;
 };
 
 const MENU: readonly MenuItem[] = [
@@ -65,14 +69,48 @@ const MENU: readonly MenuItem[] = [
 ] as const;
 
 export default function SettingsMenuScreen() {
+  const [showPrivacyOptions, setShowPrivacyOptions] = useState(false);
   const reset = useSettingsStore((s) => s.reset);
   const themeId = useSettingsStore((s) => s.theme.themeId);
   const adFreeUntil = useSettingsStore((s) => s.adFreeUntil);
   const grantAdFree = useSettingsStore((s) => s.grantAdFree);
   const activeTheme = getTheme(themeId);
 
+  // Check if privacy options should be available
+  useEffect(() => {
+    const checkPrivacyOptions = async () => {
+      try {
+        const consentInfo = await AdsConsent.getConsentInfo();
+        // Show privacy options if user is in a consent-required region or has previously given consent
+        setShowPrivacyOptions(consentInfo.status !== 'UNKNOWN' && consentInfo.status !== 'NOT_REQUIRED');
+      } catch (error) {
+        console.warn('[Settings] Failed to check consent status:', error);
+        setShowPrivacyOptions(false);
+      }
+    };
+    
+    checkPrivacyOptions();
+  }, []);
+
+  // Create dynamic menu with conditional privacy item
+  const menuItems = React.useMemo(() => {
+    const baseMenu = [...MENU];
+    
+    if (showPrivacyOptions) {
+      baseMenu.push({
+        id: "privacy",
+        title: "Privacy & Data",
+        subtitle: "Manage ad personalization and data collection preferences.",
+        icon: "shield-outline",
+        action: showPrivacyOptionsForm,
+      });
+    }
+    
+    return baseMenu;
+  }, [showPrivacyOptions]);
+
   // One rewarded view grants 24h ad-free; extra views during that window do not stack.
-  const { isLoaded: removeAdsReady, present: presentRemoveAdsAd } = useRewardedUnlock(
+  const { isLoaded: removeAdsReady, isLoading: removeAdsLoading, present: presentRemoveAdsAd } = useRewardedUnlock(
     REWARDED_REMOVE_ADS_UNIT_ID,
     () => {
       const wasAdFree = useSettingsStore.getState().adFreeUntil > Date.now();
@@ -116,10 +154,16 @@ export default function SettingsMenuScreen() {
 
         <ScrollView contentContainerStyle={styles.scroll}>
           <GlassCard style={styles.menuCard}>
-            {MENU.map((item, idx) => (
+            {menuItems.map((item, idx) => (
               <Pressable
                 key={item.id}
-                onPress={() => router.push(item.href)}
+                onPress={() => {
+                  if (item.href) {
+                    router.push(item.href);
+                  } else if (item.action) {
+                    item.action();
+                  }
+                }}
                 style={({ pressed }) => [
                   styles.menuRow,
                   idx > 0 && styles.menuRowDivider,
@@ -159,16 +203,22 @@ export default function SettingsMenuScreen() {
               </Text>
             </View>
             <Pressable
-              disabled={!removeAdsReady}
+              disabled={removeAdsLoading || !removeAdsReady}
               onPress={presentRemoveAdsAd}
               style={({ pressed }) => [
                 styles.adFreeBtn,
                 { backgroundColor: activeTheme.accent },
-                (pressed || !removeAdsReady) && { opacity: 0.5 },
+                (pressed || removeAdsLoading || !removeAdsReady) && { opacity: 0.5 },
               ]}
             >
-              <Ionicons name="play" size={14} color="#0A0A0F" />
-              <Text style={styles.adFreeBtnText}>{removeAdsReady ? "Watch" : "…"}</Text>
+              {removeAdsLoading ? (
+                <ActivityIndicator size="small" color="#0A0A0F" />
+              ) : (
+                <>
+                  <Ionicons name="play" size={14} color="#0A0A0F" />
+                  <Text style={styles.adFreeBtnText}>{removeAdsReady ? "Watch" : "Load"}</Text>
+                </>
+              )}
             </Pressable>
           </GlassCard>
 

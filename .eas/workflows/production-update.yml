@@ -1,0 +1,13 @@
+name: Production Update
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  publish_update:
+    name: Publish Update
+    type: update
+    params:
+      channel: production
+      message: "Auto update from ${{ github.event.head_commit.message }}"
